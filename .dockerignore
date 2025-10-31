@@ -1,17 +1,51 @@
+# Dependencies
 node_modules
-.next
-.git
-.env*.local
-.DS_Store
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+.next
+dist
+build
+out
+coverage
+.nyc_output
+
+# Environment files
+.env
+.env*.local
+
+# Git
+.git
+.gitignore
+
+# IDE
 .vscode
 .idea
 *.swp
 *.swo
-coverage
-.nyc_output
-dist
-build
+
+# OS
+.DS_Store
+*.pem
+
+# Logs
+*.log
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
+DEPLOYMENT.md
+DEPLOYMENT-CHECKLIST.md
+EQUIPMENT_FIELD_MAPPING.md
+
+# Other
+.editorconfig
+.prettierrc.json
+.eslintrc.js
+.stylelintrc.json
