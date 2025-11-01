@@ -234,7 +234,9 @@ const RevenueDashboard = () => {
 
   const revenueSeries = [{
     name: 'Revenue',
-    data: revenueData.length > 0 ? revenueData.map(d => d.revenue) : []
+    data: revenueData && revenueData.length > 0 
+      ? revenueData.filter(d => d && d.revenue != null).map(d => Number(d.revenue) || 0)
+      : []
   }]
 
   const paymentStatusChartOptions = {
@@ -245,9 +247,11 @@ const RevenueDashboard = () => {
       theme?.palette?.success?.main || '#10b981', 
       theme?.palette?.warning?.main || '#f59e0b', 
       theme?.palette?.error?.main || '#ef4444'
-    ],
+    ].filter(color => color),
     labels: (paymentStatusData && paymentStatusData.length > 0) 
-      ? paymentStatusData.map(d => d?.name || 'Unknown').filter(name => name) 
+      ? paymentStatusData
+          .filter(d => d && d.name)
+          .map(d => String(d.name)) 
       : ['No Data'],
     legend: {
       position: 'bottom',
@@ -282,7 +286,11 @@ const RevenueDashboard = () => {
     }
   }
 
-  const paymentStatusSeries = paymentStatusData.length > 0 ? paymentStatusData.map(d => d.value) : [100]
+  const paymentStatusSeries = paymentStatusData && paymentStatusData.length > 0 
+    ? paymentStatusData
+        .filter(d => d && d.value != null)
+        .map(d => Number(d.value) || 0)
+    : []
 
   const categoryRevenueChartOptions = {
     chart: {
@@ -330,10 +338,14 @@ const RevenueDashboard = () => {
 
   const categoryRevenueSeries = [{
     name: 'Revenue',
-    data: categoryRevenue.length > 0 ? categoryRevenue.map(d => ({
-      x: d?.name || 'Unknown',
-      y: d?.revenue || 0
-    })).filter(d => d.x && d.y !== null) : []
+    data: categoryRevenue && categoryRevenue.length > 0 
+      ? categoryRevenue
+          .filter(d => d && d.name && d.revenue != null)
+          .map(d => ({
+            x: String(d.name),
+            y: Number(d.revenue) || 0
+          }))
+      : []
   }]
 
   const COLORS = [
@@ -342,7 +354,7 @@ const RevenueDashboard = () => {
     theme?.palette?.warning?.main || '#f59e0b',
     theme?.palette?.error?.main || '#ef4444',
     theme?.palette?.info?.main || '#0ea5e9'
-  ]
+  ].filter(color => color) // Remove any null/undefined colors
 
   if (loading) {
     return (
