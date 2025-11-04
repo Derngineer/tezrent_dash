@@ -56,6 +56,8 @@ const RevenueDashboard = () => {
   })
 
   const [revenueData, setRevenueData] = useState([])
+  const [trendSummary, setTrendSummary] = useState(null) // Summary from revenue_trends API
+  const [currentPeriod, setCurrentPeriod] = useState('daily') // Track current period for display
   const [categoryRevenue, setCategoryRevenue] = useState([])
   const [topEquipment, setTopEquipment] = useState([])
   const [paymentStatusData, setPaymentStatusData] = useState([])
@@ -66,10 +68,13 @@ const RevenueDashboard = () => {
 
   const loadDashboardData = async () => {
     try {
+      console.log('=== Loading Revenue Dashboard Data ===')
+      console.log('TimeRange:', timeRange)
       setLoading(true)
       setError(null)
 
       // Load revenue summary from API
+      console.log('Fetching revenue summary...')
       const revenueSummary = await rentalsAPI.getRevenueSummary()
 
       console.log('Revenue Summary:', revenueSummary)
@@ -89,9 +94,46 @@ const RevenueDashboard = () => {
         setError('Failed to load revenue data')
       }
 
-      // Generate mock chart data for now
-      const monthlyData = generateRevenueData(timeRange)
-      setRevenueData(monthlyData)
+      // Map timeRange to API parameters
+      const trendParams = {
+        week: { period: 'daily', days: 7 },
+        month: { period: 'daily', days: 30 },
+        quarter: { period: 'weekly', days: 84 },
+        year: { period: 'monthly', days: 365 },
+        alltime: { period: 'monthly', days: 3650 } // ~10 years for all time
+      }[timeRange] || { period: 'daily', days: 30 }
+
+      // Store current period for display
+      setCurrentPeriod(trendParams.period)
+
+      // Load revenue trends from API
+      const trendsResponse = await rentalsAPI.getRevenueTrends(trendParams).catch((err) => {
+        console.error('Revenue trends API error:', err)
+        return null
+      })
+      
+      if (trendsResponse?.data) {
+        console.log('Revenue trends response:', trendsResponse)
+        
+        // Transform API response to chart format
+        const chartData = trendsResponse.data.map(d => ({
+          date: d.label,           // Use label for x-axis (e.g., "Nov 04", "Week of Nov 04")
+          revenue: d.payout || 0,  // Show payout (what seller receives after commission)
+          rentals: d.sales || 0    // Number of rentals
+        }))
+        setRevenueData(chartData)
+        
+        // Store summary data
+        if (trendsResponse.summary) {
+          setTrendSummary(trendsResponse.summary)
+        }
+      } else {
+        console.log('Using fallback mock data for revenue trends')
+        // Fallback to mock data if API fails
+        const monthlyData = generateRevenueData(timeRange)
+        setRevenueData(monthlyData)
+        setTrendSummary(null)
+      }
 
       // Generate category revenue
       const categoryData = generateCategoryRevenue([])
@@ -108,14 +150,30 @@ const RevenueDashboard = () => {
 
       // Payment status distribution - use mock data for now
       const paymentData = [
-        { name: 'Paid', value: revenueSummary.overview?.total_sales || 0, amount: revenueSummary.overview?.total_revenue || 0 },
-        { name: 'Pending', value: revenueSummary.pending_payouts?.count || 0, amount: revenueSummary.pending_payouts?.amount || 0 },
-        { name: 'Overdue', value: 0, amount: 0 }
+        { 
+          name: 'Paid', 
+          value: revenueSummary?.overview?.total_sales || revenueSummary?.all_time?.total_sales || 0, 
+          amount: revenueSummary?.overview?.total_revenue || revenueSummary?.all_time?.total_revenue || 0 
+        },
+        { 
+          name: 'Pending', 
+          value: revenueSummary?.pending_payouts?.count || 0, 
+          amount: revenueSummary?.pending_payouts?.amount || 0 
+        },
+        { 
+          name: 'Overdue', 
+          value: 0, 
+          amount: 0 
+        }
       ]
+      console.log('Payment Status Data:', paymentData)
       setPaymentStatusData(paymentData)
     } catch (err) {
-      console.error('Revenue dashboard loading error:', err)
-      setError(err.message || 'Failed to load revenue data')
+      console.error('=== Revenue Dashboard Error ===')
+      console.error('Error details:', err)
+      console.error('Error response:', err.response)
+      console.error('Error message:', err.message)
+      setError(err.response?.data?.detail || err.message || 'Failed to load revenue data')
     } finally {
       setLoading(false)
     }
@@ -252,7 +310,7 @@ const RevenueDashboard = () => {
   }
 
   const revenueSeries = [{
-    name: 'Revenue',
+    name: 'Payout (After Commission)',
     data: revenueData && revenueData.length > 0 
       ? revenueData.filter(d => d && d.revenue != null).map(d => Number(d.revenue) || 0)
       : []
@@ -287,7 +345,12 @@ const RevenueDashboard = () => {
             total: {
               show: true,
               label: 'Total',
-              formatter: () => paymentStatusData.length > 0 ? formatCurrency(paymentStatusData.reduce((sum, d) => sum + d.amount, 0)) : 'AED 0'
+              color: getColor('palette.text.primary', '#333'),
+              formatter: () => {
+                if (!paymentStatusData || paymentStatusData.length === 0) return 'AED 0'
+                const total = paymentStatusData.reduce((sum, d) => sum + (d?.amount || 0), 0)
+                return formatCurrency(total)
+              }
             }
           }
         }
@@ -295,12 +358,18 @@ const RevenueDashboard = () => {
     },
     dataLabels: {
       enabled: true,
-      formatter: (val) => `${val.toFixed(0)}%`
+      formatter: (val) => `${val.toFixed(0)}%`,
+      style: {
+        colors: [getColor('palette.common.white', '#ffffff')]
+      }
     },
     tooltip: {
       theme: getColor('palette.mode', 'light'),
       y: {
-        formatter: (value, { seriesIndex }) => paymentStatusData[seriesIndex] ? formatCurrency(paymentStatusData[seriesIndex].amount) : 'AED 0'
+        formatter: (value, { seriesIndex }) => {
+          if (!paymentStatusData || !paymentStatusData[seriesIndex]) return 'AED 0'
+          return formatCurrency(paymentStatusData[seriesIndex].amount || 0)
+        }
       }
     }
   }
@@ -398,12 +467,13 @@ const RevenueDashboard = () => {
           size='small'
           value={timeRange}
           onChange={e => setTimeRange(e.target.value)}
-          sx={{ minWidth: 150 }}
+          sx={{ minWidth: 180 }}
         >
-          <MenuItem value='week'>Last 7 Days</MenuItem>
-          <MenuItem value='month'>Last 30 Days</MenuItem>
-          <MenuItem value='quarter'>Last Quarter</MenuItem>
-          <MenuItem value='year'>Last Year</MenuItem>
+          <MenuItem value='week'>Daily (Last 7 Days)</MenuItem>
+          <MenuItem value='month'>Daily (Last 30 Days)</MenuItem>
+          <MenuItem value='quarter'>Weekly (Last 12 Weeks)</MenuItem>
+          <MenuItem value='year'>Monthly (Last Year)</MenuItem>
+          <MenuItem value='alltime'>All Time</MenuItem>
         </TextField>
       </Box>
 
@@ -515,9 +585,44 @@ const RevenueDashboard = () => {
         <Grid item xs={12} lg={8}>
           <Card>
             <CardContent>
-              <Typography variant='h6' sx={{ mb: 3 }}>
-                Revenue Trend
-              </Typography>
+              <Box display='flex' justifyContent='space-between' alignItems='flex-start' mb={3}>
+                <Box>
+                  <Typography variant='h6'>
+                    Payout Trend (After Commission)
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    Showing {currentPeriod} breakdown
+                  </Typography>
+                </Box>
+                {trendSummary && (
+                  <Box display='flex' gap={3}>
+                    <Box textAlign='right'>
+                      <Typography variant='caption' color='text.secondary' display='block'>
+                        Total Sales
+                      </Typography>
+                      <Typography variant='h6' color='primary'>
+                        {trendSummary.total_sales || 0}
+                      </Typography>
+                    </Box>
+                    <Box textAlign='right'>
+                      <Typography variant='caption' color='text.secondary' display='block'>
+                        Your Earnings
+                      </Typography>
+                      <Typography variant='h6' color='success.main'>
+                        AED {(trendSummary.total_payout || 0).toLocaleString()}
+                      </Typography>
+                    </Box>
+                    <Box textAlign='right'>
+                      <Typography variant='caption' color='text.secondary' display='block'>
+                        Avg/{currentPeriod === 'daily' ? 'Day' : currentPeriod === 'weekly' ? 'Week' : 'Month'}
+                      </Typography>
+                      <Typography variant='h6'>
+                        AED {(trendSummary.average_daily || 0).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
               {!loading && revenueData.length > 0 ? (
                 <AppReactApexCharts
                   type='area'

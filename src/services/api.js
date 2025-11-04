@@ -522,6 +522,12 @@ export const rentalsAPI = {
     return response.data
   },
 
+  getRevenueTrends: async (params = {}) => {
+    // params: { period: 'daily'|'weekly'|'monthly', days: number }
+    const response = await api.get('rentals/rentals/revenue_trends/', { params })
+    return response.data
+  },
+
   getTransactions: async params => {
     const response = await api.get('rentals/rentals/transactions/', { params })
     return response.data
