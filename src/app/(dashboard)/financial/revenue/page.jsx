@@ -86,7 +86,7 @@ const RevenueDashboard = () => {
           totalRevenue: revenueSummary.all_time?.total_revenue || revenueSummary.overview?.total_revenue || 0,
           monthlyRevenue: revenueSummary.this_month?.revenue || 0,
           weeklyRevenue: revenueSummary.overview?.total_revenue || 0,
-          averageRentalValue: revenueSummary.all_time?.average_sale_value || revenueSummary.overview?.average_sale_value || 0,
+          averageRentalValue: revenueSummary.overview?.average_payout || 0,
           totalRentals: revenueSummary.all_time?.total_sales || revenueSummary.overview?.total_sales || 0,
           growthRate: revenueSummary.growth?.revenue_percentage || 0
         })
