@@ -48,6 +48,9 @@ const Dashboard = () => {
       const dashboardData = await rentalsAPI.getDashboardSummary()
 
       console.log('Dashboard Summary:', dashboardData)
+      console.log('Summary object:', dashboardData?.summary)
+      console.log('Recent activity:', dashboardData?.recent_activity)
+      console.log('Top equipment:', dashboardData?.top_equipment)
       console.log(`✅ Dashboard loaded in ${Date.now() - startTime}ms`)
 
       // Set metrics from summary
@@ -62,15 +65,19 @@ const Dashboard = () => {
 
       // Set recent activity
       if (dashboardData && dashboardData.recent_activity) {
-        setRecentActivity(dashboardData.recent_activity)
+        setRecentActivity(dashboardData.recent_activity.map((item, index) => ({
+          ...item,
+          id: item.id || `activity-${index}`
+        })))
       }
 
       // Set top equipment
       if (dashboardData && dashboardData.top_equipment) {
-        setTopEquipment(dashboardData.top_equipment.map(item => ({
-          id: item.id,
+        setTopEquipment(dashboardData.top_equipment.map((item, index) => ({
+          id: item.id || `equipment-${index}`,
           name: item.name,
           category: item.category,
+          category_name: item.category_name || item.category,
           times_rented: item.total_rentals || item.times_rented || 0,
           revenue: parseFloat(item.total_revenue || 0),
           daily_rate: parseFloat(item.daily_rate || 0)

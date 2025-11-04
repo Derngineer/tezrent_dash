@@ -28,6 +28,24 @@ const RevenueDashboard = () => {
   const [error, setError] = useState(null)
   const [timeRange, setTimeRange] = useState('month') // week, month, quarter, year
   
+  // Safe color getter with fallback
+  const getColor = (path, fallback) => {
+    try {
+      const keys = path.split('.')
+      let value = theme
+      for (const key of keys) {
+        if (value && typeof value === 'object' && key in value) {
+          value = value[key]
+        } else {
+          return fallback
+        }
+      }
+      return value || fallback
+    } catch {
+      return fallback
+    }
+  }
+  
   const [metrics, setMetrics] = useState({
     totalRevenue: 0,
     monthlyRevenue: 0,
@@ -55,15 +73,16 @@ const RevenueDashboard = () => {
       const revenueSummary = await rentalsAPI.getRevenueSummary()
 
       console.log('Revenue Summary:', revenueSummary)
+      console.log('All Time Data:', revenueSummary?.all_time)
 
-      // Set metrics from API response
-      if (revenueSummary && revenueSummary.overview) {
+      // Set metrics from API response - prioritize all_time for lifetime totals
+      if (revenueSummary) {
         setMetrics({
-          totalRevenue: revenueSummary.overview.total_revenue || 0,
+          totalRevenue: revenueSummary.all_time?.total_revenue || revenueSummary.overview?.total_revenue || 0,
           monthlyRevenue: revenueSummary.this_month?.revenue || 0,
-          weeklyRevenue: revenueSummary.overview.total_revenue || 0, // Use total if weekly not available
-          averageRentalValue: revenueSummary.overview.average_sale_value || 0,
-          totalRentals: revenueSummary.overview.total_sales || 0,
+          weeklyRevenue: revenueSummary.overview?.total_revenue || 0,
+          averageRentalValue: revenueSummary.all_time?.average_sale_value || revenueSummary.overview?.average_sale_value || 0,
+          totalRentals: revenueSummary.all_time?.total_sales || revenueSummary.overview?.total_sales || 0,
           growthRate: revenueSummary.growth?.revenue_percentage || 0
         })
       } else {
@@ -188,7 +207,7 @@ const RevenueDashboard = () => {
       toolbar: { show: false },
       zoom: { enabled: false }
     },
-    colors: [theme?.palette?.primary?.main || '#165DFC'],
+    colors: [getColor('palette.primary.main', '#165DFC')],
     dataLabels: { enabled: false },
     stroke: {
       curve: 'smooth',
@@ -209,23 +228,23 @@ const RevenueDashboard = () => {
         : ['No Data'],
       labels: {
         style: {
-          colors: theme?.palette?.text?.secondary || '#666'
+          colors: getColor('palette.text.secondary', '#666')
         }
       }
     },
     yaxis: {
       labels: {
         style: {
-          colors: theme?.palette?.text?.secondary || '#666'
+          colors: getColor('palette.text.secondary', '#666')
         },
         formatter: value => formatCompactCurrency(value)
       }
     },
     grid: {
-      borderColor: theme?.palette?.divider || '#e0e0e0'
+      borderColor: getColor('palette.divider', '#e0e0e0')
     },
     tooltip: {
-      theme: theme?.palette?.mode || 'light',
+      theme: getColor('palette.mode', 'light'),
       y: {
         formatter: value => formatCurrency(value)
       }
@@ -244,10 +263,10 @@ const RevenueDashboard = () => {
       type: 'donut'
     },
     colors: [
-      theme?.palette?.success?.main || '#10b981', 
-      theme?.palette?.warning?.main || '#f59e0b', 
-      theme?.palette?.error?.main || '#ef4444'
-    ].filter(color => color),
+      getColor('palette.success.main', '#10b981'),
+      getColor('palette.warning.main', '#f59e0b'),
+      getColor('palette.error.main', '#ef4444')
+    ],
     labels: (paymentStatusData && paymentStatusData.length > 0) 
       ? paymentStatusData
           .filter(d => d && d.name)
@@ -256,7 +275,7 @@ const RevenueDashboard = () => {
     legend: {
       position: 'bottom',
       labels: {
-        colors: theme?.palette?.text?.primary || '#333'
+        colors: getColor('palette.text.primary', '#333')
       }
     },
     plotOptions: {
@@ -279,7 +298,7 @@ const RevenueDashboard = () => {
       formatter: (val) => `${val.toFixed(0)}%`
     },
     tooltip: {
-      theme: theme?.palette?.mode || 'light',
+      theme: getColor('palette.mode', 'light'),
       y: {
         formatter: (value, { seriesIndex }) => paymentStatusData[seriesIndex] ? formatCurrency(paymentStatusData[seriesIndex].amount) : 'AED 0'
       }
@@ -297,7 +316,7 @@ const RevenueDashboard = () => {
       type: 'bar',
       toolbar: { show: false }
     },
-    colors: [theme?.palette?.primary?.main || '#165DFC'],
+    colors: [getColor('palette.primary.main', '#165DFC')],
     plotOptions: {
       bar: {
         horizontal: true,
@@ -313,7 +332,7 @@ const RevenueDashboard = () => {
     xaxis: {
       labels: {
         style: {
-          colors: theme?.palette?.text?.secondary || '#666'
+          colors: getColor('palette.text.secondary', '#666')
         },
         formatter: value => formatCompactCurrency(value)
       }
@@ -321,15 +340,15 @@ const RevenueDashboard = () => {
     yaxis: {
       labels: {
         style: {
-          colors: theme?.palette?.text?.secondary || '#666'
+          colors: getColor('palette.text.secondary', '#666')
         }
       }
     },
     grid: {
-      borderColor: theme?.palette?.divider || '#e0e0e0'
+      borderColor: getColor('palette.divider', '#e0e0e0')
     },
     tooltip: {
-      theme: theme?.palette?.mode || 'light',
+      theme: getColor('palette.mode', 'light'),
       y: {
         formatter: value => formatCurrency(value)
       }
@@ -349,12 +368,12 @@ const RevenueDashboard = () => {
   }]
 
   const COLORS = [
-    theme?.palette?.primary?.main || '#165DFC',
-    theme?.palette?.success?.main || '#10b981', 
-    theme?.palette?.warning?.main || '#f59e0b',
-    theme?.palette?.error?.main || '#ef4444',
-    theme?.palette?.info?.main || '#0ea5e9'
-  ].filter(color => color) // Remove any null/undefined colors
+    getColor('palette.primary.main', '#165DFC'),
+    getColor('palette.success.main', '#10b981'),
+    getColor('palette.warning.main', '#f59e0b'),
+    getColor('palette.error.main', '#ef4444'),
+    getColor('palette.info.main', '#0ea5e9')
+  ]
 
   if (loading) {
     return (
@@ -398,21 +417,21 @@ const RevenueDashboard = () => {
       <Grid container spacing={6}>
         {/* Key Metrics */}
         <Grid item xs={12} sm={6} lg={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${theme?.palette?.primary?.main || '#165DFC'} 0%, ${theme?.palette?.primary?.dark || '#0d3f9f'} 100%)`, color: 'white' }}>
+          <Card sx={{ background: `linear-gradient(135deg, ${getColor('palette.primary.main', '#165DFC')} 0%, ${getColor('palette.primary.dark', '#0d3f9f')} 100%)`, color: 'white' }}>
             <CardContent>
               <Box display='flex' justifyContent='space-between' alignItems='flex-start'>
                 <Box>
                   <Typography variant='body2' sx={{ opacity: 0.9, mb: 1 }}>
-                    Total Revenue
+                    Total Revenue (All Time)
                   </Typography>
                   <Typography variant='h4' sx={{ mb: 1 }}>
                     {formatCurrency(metrics.totalRevenue)}
                   </Typography>
                   <Chip 
-                    label={`+${metrics.growthRate}%`} 
+                    label={metrics.growthRate >= 0 ? `+${metrics.growthRate}%` : `${metrics.growthRate}%`} 
                     size='small' 
                     sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
-                    icon={<i className='ri-arrow-up-line' style={{ color: 'white' }} />}
+                    icon={<i className={metrics.growthRate >= 0 ? 'ri-arrow-up-line' : 'ri-arrow-down-line'} style={{ color: 'white' }} />}
                   />
                 </Box>
                 <Box sx={{ width: 50, height: 50, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -424,7 +443,7 @@ const RevenueDashboard = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} lg={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${theme?.palette?.success?.main || '#10b981'} 0%, ${theme?.palette?.success?.dark || '#059669'} 100%)`, color: 'white' }}>
+          <Card sx={{ background: `linear-gradient(135deg, ${getColor('palette.success.main', '#10b981')} 0%, ${getColor('palette.success.dark', '#059669')} 100%)`, color: 'white' }}>
             <CardContent>
               <Box display='flex' justifyContent='space-between' alignItems='flex-start'>
                 <Box>
@@ -447,7 +466,7 @@ const RevenueDashboard = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} lg={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${theme?.palette?.warning?.main || '#f59e0b'} 0%, ${theme?.palette?.warning?.dark || '#d97706'} 100%)`, color: 'white' }}>
+          <Card sx={{ background: `linear-gradient(135deg, ${getColor('palette.warning.main', '#f59e0b')} 0%, ${getColor('palette.warning.dark', '#d97706')} 100%)`, color: 'white' }}>
             <CardContent>
               <Box display='flex' justifyContent='space-between' alignItems='flex-start'>
                 <Box>
@@ -470,18 +489,18 @@ const RevenueDashboard = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} lg={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${theme?.palette?.info?.main || '#0ea5e9'} 0%, ${theme?.palette?.info?.dark || '#0284c7'} 100%)`, color: 'white' }}>
+          <Card sx={{ background: `linear-gradient(135deg, ${getColor('palette.info.main', '#0ea5e9')} 0%, ${getColor('palette.info.dark', '#0284c7')} 100%)`, color: 'white' }}>
             <CardContent>
               <Box display='flex' justifyContent='space-between' alignItems='flex-start'>
                 <Box>
                   <Typography variant='body2' sx={{ opacity: 0.9, mb: 1 }}>
-                    Total Rentals
+                    Total Rentals (All Time)
                   </Typography>
                   <Typography variant='h4' sx={{ mb: 1 }}>
                     {metrics.totalRentals}
                   </Typography>
                   <Typography variant='caption' sx={{ opacity: 0.8 }}>
-                    Completed
+                    All completed rentals
                   </Typography>
                 </Box>
                 <Box sx={{ width: 50, height: 50, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
