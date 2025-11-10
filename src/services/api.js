@@ -31,9 +31,11 @@ const api = axios.create({
 api.interceptors.request.use(
   config => {
     const token = getAccessToken()
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
     return config
   },
   error => {
@@ -53,22 +55,26 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = getRefreshToken()
+
         if (refreshToken) {
           const response = await axios.post(`${API_BASE_URL}accounts/token/refresh/`, {
             refresh: refreshToken
           })
 
           const { access } = response.data
+
           setAccessToken(access)
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access}`
+
           return api(originalRequest)
         }
       } catch (refreshError) {
         // Refresh failed, logout user
         clearTokens()
         window.location.href = '/login'
+
         return Promise.reject(refreshError)
       }
     }
@@ -89,6 +95,7 @@ export const getAccessToken = () => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('access_token')
   }
+
   return null
 }
 
@@ -96,6 +103,7 @@ export const getRefreshToken = () => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('refresh_token')
   }
+
   return null
 }
 
@@ -122,8 +130,10 @@ export const setUserProfile = profile => {
 export const getUserProfile = () => {
   if (typeof window !== 'undefined') {
     const profile = localStorage.getItem('user_profile')
+
     return profile ? JSON.parse(profile) : null
   }
+
   return null
 }
 
@@ -139,14 +149,16 @@ export const authAPI = {
   // 5. Full URL becomes: http://localhost:8000/api/accounts/register/company/
   // 6. Backend receives the request at that URL
   // ============================================================================
-  register: async (data) => {
+  register: async data => {
     // axios.post() sends HTTP POST request
     // First parameter: URL = API_BASE_URL + 'accounts/register/company/'
     // Second parameter: data = { username, email, password, confirm_password, profile: { company_name, phone } }
     console.log('API REGISTER - URL:', `${API_BASE_URL}accounts/register/company/`)
     console.log('API REGISTER - Data:', JSON.stringify(data, null, 2))
     const response = await axios.post(`${API_BASE_URL}accounts/register/company/`, data)
+
     console.log('API REGISTER - Response:', response.data)
+
     return response.data
   },
 
@@ -154,8 +166,10 @@ export const authAPI = {
   login: async (email, password) => {
     const response = await axios.post(`${API_BASE_URL}accounts/token/`, { email, password })
     const { access, refresh, user } = response.data
+
     setTokens(access, refresh)
     setUserProfile(user)
+
     return response.data
   },
 
@@ -166,13 +180,17 @@ export const authAPI = {
 
   getProfile: async () => {
     const response = await api.get('accounts/profile/')
+
     setUserProfile(response.data)
+
     return response.data
   },
 
   updateProfile: async data => {
     const response = await api.patch('accounts/profile/', data)
+
     setUserProfile(response.data)
+
     return response.data
   },
 
@@ -198,8 +216,9 @@ export const authAPI = {
   // Step 1: Request password reset (send email with reset link)
   // POST request to: http://localhost:8000/api/accounts/password-reset/
   // Sends: { email: "user@example.com" }
-  requestPasswordReset: async (email) => {
+  requestPasswordReset: async email => {
     const response = await axios.post(`${API_BASE_URL}accounts/password-reset/`, { email })
+
     return response.data
   },
 
@@ -207,10 +226,11 @@ export const authAPI = {
   // POST request to: http://localhost:8000/api/accounts/password-reset-confirm/
   // Sends: { token: "...", password: "newpassword" }
   confirmPasswordReset: async (token, password) => {
-    const response = await axios.post(`${API_BASE_URL}accounts/password-reset-confirm/`, { 
-      token, 
-      password 
+    const response = await axios.post(`${API_BASE_URL}accounts/password-reset-confirm/`, {
+      token,
+      password
     })
+
     return response.data
   }
 }
@@ -221,7 +241,8 @@ export const equipmentAPI = {
   // Component calls: equipmentAPI.getMyEquipment()
   // HTTP Method decided HERE ↓
   getMyEquipment: async params => {
-    const response = await api.get('equipment/equipment/', { params })  // ← GET method
+    const response = await api.get('equipment/equipment/', { params }) // ← GET method
+
     return response.data
   },
 
@@ -229,7 +250,8 @@ export const equipmentAPI = {
   // Component calls: equipmentAPI.getEquipment(id)
   // HTTP Method decided HERE ↓
   getEquipment: async id => {
-    const response = await api.get(`equipment/equipment/${id}/`)  // ← GET method
+    const response = await api.get(`equipment/equipment/${id}/`) // ← GET method
+
     return response.data
   },
 
@@ -237,9 +259,11 @@ export const equipmentAPI = {
   // Component calls: equipmentAPI.createEquipment(data)
   // HTTP Method decided HERE ↓
   createEquipment: async data => {
-    const response = await api.post('equipment/equipment/', data, {  // ← POST method
+    const response = await api.post('equipment/equipment/', data, {
+      // ← POST method
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+
     return response.data
   },
 
@@ -247,7 +271,8 @@ export const equipmentAPI = {
   // Component calls: equipmentAPI.updateEquipment(id, data)
   // HTTP Method decided HERE ↓
   updateEquipment: async (id, data) => {
-    const response = await api.patch(`equipment/equipment/${id}/`, data)  // ← PATCH method
+    const response = await api.patch(`equipment/equipment/${id}/`, data) // ← PATCH method
+
     return response.data
   },
 
@@ -255,28 +280,33 @@ export const equipmentAPI = {
   // Component calls: equipmentAPI.deleteEquipment(id)
   // HTTP Method decided HERE ↓
   deleteEquipment: async id => {
-    await api.delete(`equipment/equipment/${id}/`)  // ← DELETE method
+    await api.delete(`equipment/equipment/${id}/`) // ← DELETE method
   },
 
   // POST REQUEST - Upload image
   uploadImage: async (id, imageFile) => {
     const formData = new FormData()
+
     formData.append('image', imageFile)
-    const response = await api.post(`equipment/equipment/${id}/upload_image/`, formData, {  // ← POST method
+
+    const response = await api.post(`equipment/equipment/${id}/upload_image/`, formData, {
+      // ← POST method
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+
     return response.data
   },
 
   // POST REQUEST - Set primary image
   setPrimaryImage: async (id, imageId) => {
-    const response = await api.post(`equipment/equipment/${id}/set_primary_image/`, { image_id: imageId })  // ← POST method
+    const response = await api.post(`equipment/equipment/${id}/set_primary_image/`, { image_id: imageId }) // ← POST method
+
     return response.data
   },
 
   // DELETE REQUEST - Delete image
   deleteImage: async imageId => {
-    await api.delete(`equipment/images/${imageId}/`)  // ← DELETE method
+    await api.delete(`equipment/images/${imageId}/`) // ← DELETE method
   },
 
   // ============================================================================
@@ -286,66 +316,79 @@ export const equipmentAPI = {
   // GET REQUEST - Get all categories
   getCategories: async () => {
     const response = await api.get('equipment/categories/')
+
     return response.data
   },
 
   // GET REQUEST - Get featured categories
   getFeaturedCategories: async () => {
     const response = await api.get('equipment/categories/featured/')
+
     return response.data
   },
 
   // GET REQUEST - Get category choices for dropdowns
   getCategoryChoices: async () => {
     const response = await api.get('equipment/categories/choices/')
+
     return response.data
   },
 
   // GET REQUEST - Get single category by ID
-  getCategory: async (id) => {
+  getCategory: async id => {
     const response = await api.get(`equipment/categories/${id}/`)
+
     return response.data
   },
 
   // POST REQUEST - Create new category
-  createCategory: async (data) => {
+  createCategory: async data => {
     const response = await api.post('equipment/categories/', data)
+
     return response.data
   },
 
   // PATCH REQUEST - Update category
   updateCategory: async (id, data) => {
     const response = await api.patch(`equipment/categories/${id}/`, data)
+
     return response.data
   },
 
   // DELETE REQUEST - Delete category
-  deleteCategory: async (id) => {
+  deleteCategory: async id => {
     await api.delete(`equipment/categories/${id}/`)
   },
 
   // POST REQUEST - Upload category icon
   uploadCategoryIcon: async (id, iconFile) => {
     const formData = new FormData()
+
     formData.append('icon', iconFile)
+
     const response = await api.post(`equipment/categories/${id}/upload_icon/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+
     return response.data
   },
 
   // POST REQUEST - Upload category promotional image
   uploadCategoryPromotionalImage: async (id, imageFile) => {
     const formData = new FormData()
+
     formData.append('promotional_image', imageFile)
+
     const response = await api.post(`equipment/categories/${id}/upload_promotional_image/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+
     return response.data
   },
 
   toggleAvailability: async id => {
     const response = await api.post(`equipment/equipment/${id}/toggle_availability/`)
+
     return response.data
   },
 
@@ -356,26 +399,30 @@ export const equipmentAPI = {
   // GET REQUEST - Get all banners
   getBanners: async () => {
     const response = await api.get('equipment/banners/')
+
     return response.data
   },
 
   // GET REQUEST - Get active banners only
   getActiveBanners: async () => {
     const response = await api.get('equipment/banners/active/')
+
     return response.data
   },
 
   // GET REQUEST - Get single banner
-  getBanner: async (id) => {
+  getBanner: async id => {
     const response = await api.get(`equipment/banners/${id}/`)
+
     return response.data
   },
 
   // POST REQUEST - Create banner (with image upload)
-  createBanner: async (formData) => {
+  createBanner: async formData => {
     const response = await api.post('equipment/banners/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+
     return response.data
   },
 
@@ -384,11 +431,12 @@ export const equipmentAPI = {
     const response = await api.patch(`equipment/banners/${id}/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+
     return response.data
   },
 
   // DELETE REQUEST - Delete banner
-  deleteBanner: async (id) => {
+  deleteBanner: async id => {
     await api.delete(`equipment/banners/${id}/`)
   },
 
@@ -399,34 +447,39 @@ export const equipmentAPI = {
   // GET REQUEST - Get all tags
   getTags: async () => {
     const response = await api.get('equipment/tags/')
+
     return response.data
   },
 
   // GET REQUEST - Get single tag
-  getTag: async (id) => {
+  getTag: async id => {
     const response = await api.get(`equipment/tags/${id}/`)
+
     return response.data
   },
 
   // POST REQUEST - Create tag
-  createTag: async (data) => {
+  createTag: async data => {
     const response = await api.post('equipment/tags/', data)
+
     return response.data
   },
 
   // PATCH REQUEST - Update tag
   updateTag: async (id, data) => {
     const response = await api.patch(`equipment/tags/${id}/`, data)
+
     return response.data
   },
 
   // DELETE REQUEST - Delete tag
-  deleteTag: async (id) => {
+  deleteTag: async id => {
     await api.delete(`equipment/tags/${id}/`)
   },
 
   getCategories: async () => {
     const response = await api.get('equipment/categories/')
+
     return response.data
   }
 }
@@ -436,40 +489,47 @@ export const rentalsAPI = {
   // List rentals with filters
   getRentals: async params => {
     const response = await api.get('rentals/rentals/', { params })
+
     return response.data
   },
 
   // Get single rental detail
   getRental: async id => {
     const response = await api.get(`rentals/rentals/${id}/`)
+
     return response.data
   },
 
   // Seller-specific endpoints
   getPendingApprovals: async () => {
     const response = await api.get('rentals/rentals/pending_approvals/')
+
     return response.data
   },
 
   getActiveRentals: async () => {
     const response = await api.get('rentals/rentals/active_rentals/')
+
     return response.data
   },
 
   // Customer-specific
   getMyRentals: async () => {
     const response = await api.get('rentals/rentals/my_rentals/')
+
     return response.data
   },
 
   // Status updates
   approveRental: async (id, notes) => {
     const response = await api.post(`rentals/rentals/${id}/approve/`, { notes })
+
     return response.data
   },
 
   cancelRental: async (id, reason) => {
     const response = await api.post(`rentals/rentals/${id}/cancel/`, { reason })
+
     return response.data
   },
 
@@ -479,6 +539,7 @@ export const rentalsAPI = {
       notes,
       is_visible_to_customer: isVisibleToCustomer
     })
+
     return response.data
   },
 
@@ -486,6 +547,7 @@ export const rentalsAPI = {
     const response = await api.post(`rentals/rentals/${id}/mark_delivered/`, {
       notes
     })
+
     return response.data
   },
 
@@ -493,6 +555,7 @@ export const rentalsAPI = {
     const response = await api.post(`rentals/rentals/${id}/request_return/`, {
       notes
     })
+
     return response.data
   },
 
@@ -502,45 +565,69 @@ export const rentalsAPI = {
       damage_fees: damageFees || 0,
       notes
     })
+
     return response.data
   },
 
   // Reviews
   getReviews: async params => {
     const response = await api.get('rentals/reviews/', { params })
+
     return response.data
   },
 
   createReview: async data => {
     const response = await api.post('rentals/reviews/', data)
+
     return response.data
   },
 
   // Financial endpoints
   getRevenueSummary: async () => {
     const response = await api.get('rentals/rentals/revenue_summary/')
+
     return response.data
   },
 
   getRevenueTrends: async (params = {}) => {
     // params: { period: 'daily'|'weekly'|'monthly', days: number }
     const response = await api.get('rentals/rentals/revenue_trends/', { params })
+
+    return response.data
+  },
+
+  // GET REQUEST - Revenue by category (for dashboards)
+  // Example response expected: [{ category: 'Excavators', total_revenue: 12345 }, ...]
+  getRevenueByCategory: async (params = {}) => {
+    const response = await api.get('rentals/rentals/revenue_by_category/', { params })
+
+    return response.data
+  },
+
+  // GET REQUEST - Top revenue by equipment (for dashboards)
+  // Example response expected: { equipment: [{ equipment_name, equipment_image, total_revenue, rental_count }, ...] }
+  getTopRevenueEquipment: async (params = {}) => {
+    const response = await api.get('rentals/rentals/revenue_by_equipment/', { params })
+
     return response.data
   },
 
   getTransactions: async params => {
     const response = await api.get('rentals/rentals/transactions/', { params })
+
     return response.data
   },
 
   getSales: async params => {
     const response = await api.get('rentals/rentals/sales/', { params })
+
     return response.data
   },
 
   // Dashboard summary - single endpoint for all dashboard data
   getDashboardSummary: async () => {
     const response = await api.get('rentals/rentals/dashboard_summary/')
+
     return response.data
   }
 }
@@ -550,84 +637,100 @@ export const crmAPI = {
   // Leads
   getLeads: async params => {
     const response = await api.get('crm/leads/', { params })
+
     return response.data
   },
 
   createLead: async data => {
     const response = await api.post('crm/leads/', data)
+
     return response.data
   },
 
   updateLead: async (id, data) => {
     const response = await api.patch(`crm/leads/${id}/`, data)
+
     return response.data
   },
 
   markLeadContacted: async (id, notes) => {
     const response = await api.post(`crm/leads/${id}/mark_contacted/`, { notes })
+
     return response.data
   },
 
   convertToOpportunity: async (id, data) => {
     const response = await api.post(`crm/leads/${id}/convert_to_opportunity/`, data)
+
     return response.data
   },
 
   // Opportunities
   getOpportunities: async params => {
     const response = await api.get('crm/opportunities/', { params })
+
     return response.data
   },
 
   getPipelineSummary: async () => {
     const response = await api.get('crm/opportunities/pipeline/')
+
     return response.data
   },
 
   updateOpportunity: async (id, data) => {
     const response = await api.patch(`crm/opportunities/${id}/`, data)
+
     return response.data
   },
 
   markOpportunityWon: async (id, notes) => {
     const response = await api.post(`crm/opportunities/${id}/mark_won/`, { won_notes: notes })
+
     return response.data
   },
 
   markOpportunityLost: async (id, reason) => {
     const response = await api.post(`crm/opportunities/${id}/mark_lost/`, { lost_reason: reason })
+
     return response.data
   },
 
   // Interactions
   getInteractions: async params => {
     const response = await api.get('crm/interactions/', { params })
+
     return response.data
   },
 
   createInteraction: async data => {
     const response = await api.post('crm/interactions/', data)
+
     return response.data
   },
 
   // Support Tickets
   getTickets: async params => {
     const response = await api.get('crm/tickets/', { params })
+
     return response.data
   },
 
   getMyTickets: async () => {
     const response = await api.get('crm/tickets/my_tickets/')
+
     return response.data
   },
 
   createTicket: async data => {
     const response = await api.post('crm/tickets/', data)
+
     return response.data
   },
 
   updateTicket: async (id, data) => {
     const response = await api.patch(`crm/tickets/${id}/`, data)
+
     return response.data
   },
 
@@ -636,11 +739,13 @@ export const crmAPI = {
       comment,
       is_internal: isInternal
     })
+
     return response.data
   },
 
   resolveTicket: async (id, notes) => {
     const response = await api.post(`crm/tickets/${id}/mark_resolved/`, { resolution_notes: notes })
+
     return response.data
   }
 }
@@ -649,11 +754,13 @@ export const crmAPI = {
 export const notificationsAPI = {
   getNotifications: async params => {
     const response = await api.get('notifications/', { params })
+
     return response.data
   },
 
   getUnreadCount: async () => {
     const response = await api.get('notifications/unread_count/')
+
     return response.data
   },
 
