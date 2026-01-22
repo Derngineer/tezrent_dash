@@ -3,7 +3,7 @@ import axios from 'axios'
 // ============================================================================
 // CONNECTION FLOW:
 // ============================================================================
-// 1. .env file (line 10) defines: NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/
+// 1. .env file defines: NEXT_PUBLIC_API_BASE_URL=https://tezrent-api.onrender.com/api/
 // 2. Next.js reads .env and makes it available as: process.env.NEXT_PUBLIC_API_BASE_URL
 // 3. This file reads it below and stores in API_BASE_URL constant
 // 4. All API functions in this file use API_BASE_URL to build full URLs
@@ -14,14 +14,14 @@ import axios from 'axios'
 
 // API Base URL - READ FROM .env FILE
 // This reads: NEXT_PUBLIC_API_BASE_URL from /.env
-// Value: http://localhost:8000/api/
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/'
+// Production: https://tezrent-api.onrender.com/api/
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://tezrent-api.onrender.com/api/'
 
 // Create axios instance - THIS IS THE HTTP CLIENT
 // All requests will automatically use API_BASE_URL as the base
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000, // 15 second timeout
+  timeout: 120000, // 2 minutes default timeout (for slow backend responses)
   headers: {
     'Content-Type': 'application/json'
   }
@@ -241,7 +241,11 @@ export const equipmentAPI = {
   // Component calls: equipmentAPI.getMyEquipment()
   // HTTP Method decided HERE ↓
   getMyEquipment: async params => {
-    const response = await api.get('equipment/equipment/', { params }) // ← GET method
+    // Increase timeout for equipment listing as it can be large
+    const response = await api.get('equipment/equipment/', {
+      params,
+      timeout: 120000 // 2 minutes for equipment listing (handles slow backend responses)
+    })
 
     return response.data
   },

@@ -2,6 +2,7 @@
 
 // React Imports
 import { useState, useEffect } from 'react'
+
 import { useRouter } from 'next/navigation'
 
 // MUI Imports
@@ -51,14 +52,12 @@ const AddEquipment = () => {
     status: 'available',
     total_units: 1,
     available_units: 1,
-    featured: false, // Backend field (not is_featured)
+    featured: false,
+    is_new_listing: true,
+    is_todays_deal: false,
+    is_active: true,
     manual_description: '' // Optional: Description of operating manual
   })
-
-  // Specifications array
-  const [specifications, setSpecifications] = useState([])
-  const [specName, setSpecName] = useState('')
-  const [specValue, setSpecValue] = useState('')
 
   // Tags
   const [tags, setTags] = useState([])
@@ -85,6 +84,7 @@ const AddEquipment = () => {
   const loadCategories = async () => {
     try {
       const data = await equipmentAPI.getCategories()
+
       setCategories(data.results || data)
     } catch (err) {
       console.error('Failed to load categories:', err)
@@ -95,6 +95,7 @@ const AddEquipment = () => {
     try {
       setLoadingTags(true)
       const data = await equipmentAPI.getTags()
+
       setAvailableTags(data.results || data)
     } catch (err) {
       console.error('Failed to load tags:', err)
@@ -107,29 +108,38 @@ const AddEquipment = () => {
     console.log(`Field "${field}" changed to:`, value)
     setFormData(prev => {
       const newData = { ...prev, [field]: value }
+
       console.log('Updated formData:', newData)
+
       return newData
     })
+
     // Clear error for this field
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }))
     }
   }
 
-  const handleCountryChange = (value) => {
+  const handleCountryChange = value => {
     console.log('Country changed to:', value)
+
     // When country changes, reset city to default for that country
     const defaultCity = value === 'UAE' ? 'DXB' : 'TAS'
+
     console.log('Resetting city to:', defaultCity)
     setFormData(prev => {
       const newData = { ...prev, country: value, city: defaultCity }
+
       console.log('Updated formData:', newData)
+
       return newData
     })
+
     // Clear errors
     if (errors.country) {
       setErrors(prev => ({ ...prev, country: null }))
     }
+
     if (errors.city) {
       setErrors(prev => ({ ...prev, city: null }))
     }
@@ -137,8 +147,10 @@ const AddEquipment = () => {
 
   const handleImageSelect = e => {
     const files = Array.from(e.target.files)
+
     if (files.length + selectedImages.length > 7) {
       setError('Maximum 7 images allowed')
+
       return
     }
 
@@ -147,9 +159,11 @@ const AddEquipment = () => {
     // Create previews
     files.forEach(file => {
       const reader = new FileReader()
+
       reader.onloadend = () => {
         setImagePreviews(prev => [...prev, reader.result])
       }
+
       reader.readAsDataURL(file)
     })
   }
@@ -159,19 +173,24 @@ const AddEquipment = () => {
     setImagePreviews(prev => prev.filter((_, i) => i !== index))
   }
 
-  const handleManualFileChange = (e) => {
+  const handleManualFileChange = e => {
     const file = e.target.files[0]
+
     if (file) {
       // Validate file type (PDF only)
       if (file.type !== 'application/pdf') {
         setError('Operating manual must be a PDF file')
+
         return
       }
+
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         setError('Operating manual must be less than 10MB')
+
         return
       }
+
       setOperatingManual(file)
       setManualFileName(file.name)
       setError(null)
@@ -190,7 +209,7 @@ const AddEquipment = () => {
     }
   }
 
-  const handleSelectExistingTag = (tagName) => {
+  const handleSelectExistingTag = tagName => {
     if (!tags.includes(tagName)) {
       setTags([...tags, tagName])
     }
@@ -198,18 +217,6 @@ const AddEquipment = () => {
 
   const handleRemoveTag = tagToRemove => {
     setTags(tags.filter(tag => tag !== tagToRemove))
-  }
-
-  const handleAddSpecification = () => {
-    if (specName.trim() && specValue.trim()) {
-      setSpecifications([...specifications, { name: specName.trim(), value: specValue.trim() }])
-      setSpecName('')
-      setSpecValue('')
-    }
-  }
-
-  const handleRemoveSpecification = index => {
-    setSpecifications(specifications.filter((_, i) => i !== index))
   }
 
   const validateForm = () => {
@@ -224,6 +231,7 @@ const AddEquipment = () => {
     if (!formData.city) newErrors.city = 'City is required'
 
     setErrors(newErrors)
+
     return Object.keys(newErrors).length === 0
   }
 
@@ -232,6 +240,7 @@ const AddEquipment = () => {
 
     if (!validateForm()) {
       setError('Please fix the errors in the form')
+
       return
     }
 
@@ -245,6 +254,7 @@ const AddEquipment = () => {
       // Add all form fields (only non-empty values)
       Object.keys(formData).forEach(key => {
         const value = formData[key]
+
         if (value !== '' && value !== null && value !== undefined) {
           // Convert boolean to string for FormData
           if (typeof value === 'boolean') {
@@ -260,11 +270,6 @@ const AddEquipment = () => {
         formDataToSend.append('tag_names', JSON.stringify(tags))
       }
 
-      // Add specifications as JSON string if any
-      if (specifications.length > 0) {
-        formDataToSend.append('specifications_data', JSON.stringify(specifications))
-      }
-
       // Add images directly to FormData (backend expects 'images' field)
       selectedImages.forEach(image => {
         formDataToSend.append('images', image)
@@ -277,6 +282,7 @@ const AddEquipment = () => {
 
       // Log what we're sending
       console.log('Submitting equipment data:')
+
       for (let [key, value] of formDataToSend.entries()) {
         if (value instanceof File) {
           console.log(`  ${key}: ${value.name} (${value.type}, ${value.size} bytes)`)
@@ -289,7 +295,7 @@ const AddEquipment = () => {
       const equipment = await equipmentAPI.createEquipment(formDataToSend)
 
       setSuccess('Equipment added successfully!')
-      
+
       // Redirect after 2 seconds
       setTimeout(() => {
         router.push('/equipment')
@@ -299,23 +305,26 @@ const AddEquipment = () => {
       console.error('Error response:', err.response?.data)
       console.error('Error status:', err.response?.status)
       console.error('Full error object:', JSON.stringify(err.response?.data, null, 2))
-      
+
       // Extract detailed error messages
       let errorMessage = 'Failed to create equipment'
+
       if (err.response?.data) {
         if (typeof err.response.data === 'object') {
           // Log each field error separately
           Object.entries(err.response.data).forEach(([field, messages]) => {
             console.error(`Field "${field}":`, messages)
           })
-          
+
           // Handle field-specific errors
           const fieldErrors = Object.entries(err.response.data)
             .map(([field, messages]) => {
               const msgArray = Array.isArray(messages) ? messages : [messages]
+
               return `${field}: ${msgArray.join(', ')}`
             })
             .join(' | ')
+
           errorMessage = fieldErrors || errorMessage
         } else {
           errorMessage = err.response.data.message || err.response.data || errorMessage
@@ -323,7 +332,7 @@ const AddEquipment = () => {
       } else if (err.message) {
         errorMessage = err.message
       }
-      
+
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -537,59 +546,72 @@ const AddEquipment = () => {
                       onChange={e => handleInputChange('fuel_type', e.target.value)}
                     />
                   </Grid>
+
+                  {/* Marketing & Visibility */}
                   <Grid item xs={12}>
-                    <Typography variant='body2' fontWeight={600} gutterBottom>
-                      Technical Specifications
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant='h6' sx={{ mb: 2 }}>
+                      Marketing & Visibility
                     </Typography>
-                    <Box display='flex' flexDirection='column' gap={2}>
-                      {specifications.map((spec, index) => (
-                        <Box key={index} display='flex' gap={1} alignItems='center'>
-                          <Chip
-                            label={`${spec.name}: ${spec.value}`}
-                            onDelete={() => handleRemoveSpecification(index)}
-                            color='primary'
-                            variant='outlined'
-                          />
-                        </Box>
-                      ))}
-                    </Box>
-                    <Box display='flex' gap={2} mt={2}>
-                      <TextField
-                        size='small'
-                        label='Spec Name'
-                        placeholder='e.g., Engine Power'
-                        value={specName}
-                        onChange={e => setSpecName(e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
-                      <TextField
-                        size='small'
-                        label='Spec Value'
-                        placeholder='e.g., 122 HP'
-                        value={specValue}
-                        onChange={e => setSpecValue(e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
-                      <Button variant='outlined' onClick={handleAddSpecification}>
-                        Add
-                      </Button>
-                    </Box>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.featured}
+                              onChange={e => handleInputChange('featured', e.target.checked)}
+                            />
+                          }
+                          label='Featured Listing'
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.is_new_listing}
+                              onChange={e => handleInputChange('is_new_listing', e.target.checked)}
+                            />
+                          }
+                          label='New Listing'
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.is_todays_deal}
+                              onChange={e => handleInputChange('is_todays_deal', e.target.checked)}
+                            />
+                          }
+                          label="Today's Deal"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.is_active}
+                              onChange={e => handleInputChange('is_active', e.target.checked)}
+                            />
+                          }
+                          label='Active'
+                        />
+                      </Grid>
+                    </Grid>
+                    <Divider sx={{ my: 2 }} />
                   </Grid>
+
                   <Grid item xs={12}>
                     <Typography variant='body2' fontWeight={600} gutterBottom>
                       Tags (Optional)
                     </Typography>
-                    
+
                     {/* Selected Tags */}
                     {tags.length > 0 && (
                       <Box display='flex' gap={1} flexWrap='wrap' mb={2}>
                         {tags.map((tag, index) => (
-                          <Chip
-                            key={index}
-                            label={tag}
-                            onDelete={() => handleRemoveTag(tag)}
-                            color='primary'
-                          />
+                          <Chip key={index} label={tag} onDelete={() => handleRemoveTag(tag)} color='primary' />
                         ))}
                       </Box>
                     )}
@@ -603,16 +625,16 @@ const AddEquipment = () => {
                         <Box display='flex' gap={1} flexWrap='wrap'>
                           {availableTags
                             .filter(tag => !tags.includes(tag.name))
-                            .map((tag) => (
+                            .map(tag => (
                               <Chip
                                 key={tag.id}
                                 label={tag.name}
                                 onClick={() => handleSelectExistingTag(tag.name)}
                                 variant='outlined'
                                 size='small'
-                                sx={{ 
+                                sx={{
                                   cursor: 'pointer',
-                                  '&:hover': { 
+                                  '&:hover': {
                                     backgroundColor: 'primary.main',
                                     color: 'primary.contrastText'
                                   }
@@ -830,7 +852,8 @@ const AddEquipment = () => {
                   Operating Manual (Optional)
                 </Typography>
                 <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
-                  Upload a PDF operating manual or user guide. This will be available to customers after booking confirmation.
+                  Upload a PDF operating manual or user guide. This will be available to customers after booking
+                  confirmation.
                 </Typography>
 
                 {/* Manual File Display */}
@@ -849,7 +872,10 @@ const AddEquipment = () => {
                     }}
                   >
                     <Box display='flex' alignItems='center' gap={1}>
-                      <i className='ri-file-pdf-line' style={{ fontSize: 24, color: 'var(--mui-palette-success-main)' }} />
+                      <i
+                        className='ri-file-pdf-line'
+                        style={{ fontSize: 24, color: 'var(--mui-palette-success-main)' }}
+                      />
                       <Box>
                         <Typography variant='body2' fontWeight={600}>
                           {manualFileName}

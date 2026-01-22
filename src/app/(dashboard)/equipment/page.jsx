@@ -2,6 +2,7 @@
 
 // React Imports
 import { useState, useEffect } from 'react'
+
 import { useRouter } from 'next/navigation'
 
 // MUI Imports
@@ -47,9 +48,10 @@ const EquipmentList = () => {
   }, [])
 
   useEffect(() => {
+    // Debounce with longer delay for search to avoid canceling requests too quickly
     const timer = setTimeout(() => {
       loadEquipment()
-    }, 500)
+    }, 800) // Increased from 500ms to 800ms
 
     return () => clearTimeout(timer)
   }, [filters])
@@ -57,6 +59,7 @@ const EquipmentList = () => {
   const loadCategories = async () => {
     try {
       const data = await equipmentAPI.getCategories()
+
       setCategories(data.results || data)
     } catch (err) {
       console.error('Failed to load categories:', err)
@@ -69,15 +72,37 @@ const EquipmentList = () => {
       setError(null)
 
       const params = {}
+
       if (filters.search) params.search = filters.search
       if (filters.category) params.category = filters.category
       if (filters.status) params.status = filters.status
 
+      console.log('🔄 Loading equipment with params:', params)
+
       const data = await equipmentAPI.getMyEquipment(params)
+
+      console.log('✅ Equipment loaded successfully:', data.results?.length || data.length, 'items')
+
       setEquipment(data.results || data)
     } catch (err) {
-      console.error('Failed to load equipment:', err)
-      setError(err.message || 'Failed to load equipment')
+      console.error('❌ Failed to load equipment:', err)
+
+      // Better error messages for different error types
+      let errorMessage = 'Failed to load equipment'
+
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        errorMessage = 'Request timed out. The server is taking too long to respond. Please try again.'
+      } else if (err.message?.includes('Network Error') || err.message?.includes('ECONNREFUSED')) {
+        errorMessage = 'Cannot connect to server. Please check if the backend is running.'
+      } else if (err.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please login again.'
+      } else if (err.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again later.'
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -222,8 +247,11 @@ const EquipmentList = () => {
       {/* Equipment Grid */}
       {loading ? (
         <Grid item xs={12}>
-          <Box display='flex' justifyContent='center' alignItems='center' minHeight='300px'>
-            <CircularProgress />
+          <Box display='flex' flexDirection='column' justifyContent='center' alignItems='center' minHeight='300px'>
+            <CircularProgress size={48} />
+            <Typography variant='body2' color='text.secondary' sx={{ mt: 2 }}>
+              Loading equipment... Please wait, this may take a moment for large datasets.
+            </Typography>
           </Box>
         </Grid>
       ) : equipment.length === 0 ? (
@@ -351,7 +379,10 @@ const EquipmentList = () => {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, equipmentId: null, equipmentName: '' })}>
+      <Dialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, equipmentId: null, equipmentName: '' })}
+      >
         <DialogTitle>Delete Equipment</DialogTitle>
         <DialogContent>
           <Typography>

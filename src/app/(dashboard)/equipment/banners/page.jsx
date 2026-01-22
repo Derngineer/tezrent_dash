@@ -39,6 +39,7 @@ const BannersPage = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [imagePreview, setImagePreview] = useState(null)
+
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
@@ -53,15 +54,16 @@ const BannersPage = () => {
     start_date: '',
     end_date: ''
   })
+
   const [imageFile, setImageFile] = useState(null)
   const [mobileImageFile, setMobileImageFile] = useState(null)
 
   const bannerTypes = [
     { value: 'hero', label: 'Hero Banner' },
-    { value: 'promotional', label: 'Promotional' },
-    { value: 'category', label: 'Category Highlight' },
-    { value: 'deal', label: 'Special Deal' },
-    { value: 'announcement', label: 'Announcement' }
+    { value: 'featured_deals', label: 'Featured Deals' },
+    { value: 'category_highlight', label: 'Category Highlight' },
+    { value: 'brand_spotlight', label: 'Brand Spotlight' },
+    { value: 'seasonal_promo', label: 'Seasonal Promo' }
   ]
 
   const positions = [
@@ -83,20 +85,22 @@ const BannersPage = () => {
       setError(null)
       console.log('Fetching banners from API...')
       let response = await equipmentAPI.getBanners()
+
       console.log('getBanners() response:', response)
-      
+
       // If no banners, try getActiveBanners
       if (!response || (Array.isArray(response) && response.length === 0)) {
         console.log('No banners from getBanners, trying getActiveBanners...')
         response = await equipmentAPI.getActiveBanners()
         console.log('getActiveBanners() response:', response)
       }
-      
+
       console.log('Response type:', typeof response)
       console.log('Is array?', Array.isArray(response))
-      
+
       // The API returns response.data directly, so response should be the data
       let bannersData = []
+
       if (Array.isArray(response)) {
         bannersData = response
         console.log('Response is array, using directly')
@@ -104,7 +108,7 @@ const BannersPage = () => {
         console.log('Response is object, checking properties...')
         console.log('Has results?', 'results' in response)
         console.log('Has data?', 'data' in response)
-        
+
         if (response.results && Array.isArray(response.results)) {
           bannersData = response.results
           console.log('Using response.results')
@@ -115,16 +119,16 @@ const BannersPage = () => {
           console.log('Could not find array in response, using empty array')
         }
       }
-      
+
       console.log('Final banners data:', bannersData)
       console.log('Number of banners:', bannersData.length)
-      
+
       if (bannersData.length > 0) {
         console.log('First banner:', bannersData[0])
       } else {
         console.warn('No banners found. Check Django admin at http://localhost:8000/admin/ to verify banners exist.')
       }
-      
+
       setBanners(bannersData)
     } catch (err) {
       console.error('Error fetching banners:', err)
@@ -138,6 +142,7 @@ const BannersPage = () => {
   const fetchCategories = async () => {
     try {
       const response = await equipmentAPI.getCategories()
+
       setCategories(response.data || response)
     } catch (err) {
       console.error('Error fetching categories:', err)
@@ -145,27 +150,32 @@ const BannersPage = () => {
   }
 
   // Handle form changes
-  const handleChange = (field) => (event) => {
+  const handleChange = field => event => {
     const value = field === 'is_active' ? event.target.checked : event.target.value
+
     setFormData({ ...formData, [field]: value })
   }
 
   // Handle desktop image upload
-  const handleDesktopImageChange = (event) => {
+  const handleDesktopImageChange = event => {
     const file = event.target.files[0]
+
     if (file) {
       setImageFile(file)
       const reader = new FileReader()
+
       reader.onloadend = () => {
         setImagePreview(reader.result)
       }
+
       reader.readAsDataURL(file)
     }
   }
 
   // Handle mobile image upload
-  const handleMobileImageChange = (event) => {
+  const handleMobileImageChange = event => {
     const file = event.target.files[0]
+
     if (file) {
       setMobileImageFile(file)
     }
@@ -196,7 +206,7 @@ const BannersPage = () => {
   }
 
   // Open dialog for edit
-  const handleOpenEdit = (banner) => {
+  const handleOpenEdit = banner => {
     setEditMode(true)
     setCurrentBanner(banner)
     setImagePreview(banner.desktop_image_url || banner.mobile_image_url)
@@ -233,11 +243,13 @@ const BannersPage = () => {
     try {
       if (!formData.title.trim()) {
         setError('Banner title is required')
+
         return
       }
 
       if (!editMode && !imageFile) {
         setError('Banner image is required')
+
         return
       }
 
@@ -246,25 +258,25 @@ const BannersPage = () => {
 
       // Prepare form data for multipart upload
       const submitData = new FormData()
-      
+
       console.log('Form data before submission:', formData)
-      
+
       // Add only required and filled fields
       submitData.append('title', formData.title.trim())
-      
+
       if (formData.subtitle) submitData.append('subtitle', formData.subtitle.trim())
       if (formData.description) submitData.append('description', formData.description.trim())
-      
+
       submitData.append('banner_type', formData.banner_type)
       submitData.append('position', formData.position)
-      
+
       if (formData.cta_text) submitData.append('cta_text', formData.cta_text.trim())
       if (formData.cta_link) submitData.append('cta_link', formData.cta_link.trim())
       if (formData.target_category) submitData.append('target_category', formData.target_category)
-      
+
       submitData.append('is_active', formData.is_active)
       submitData.append('display_order', formData.display_order)
-      
+
       if (formData.start_date) submitData.append('start_date', formData.start_date)
       if (formData.end_date) submitData.append('end_date', formData.end_date)
 
@@ -272,7 +284,7 @@ const BannersPage = () => {
         console.log('Appending desktop image file:', imageFile.name, imageFile.type, imageFile.size)
         submitData.append('desktop_image', imageFile)
       }
-      
+
       if (mobileImageFile) {
         console.log('Appending mobile image file:', mobileImageFile.name, mobileImageFile.type, mobileImageFile.size)
         submitData.append('mobile_image', mobileImageFile)
@@ -284,6 +296,7 @@ const BannersPage = () => {
 
       // Log FormData contents
       console.log('Submitting FormData:')
+
       for (let pair of submitData.entries()) {
         console.log(pair[0] + ':', pair[1])
       }
@@ -295,6 +308,7 @@ const BannersPage = () => {
       } else {
         console.log('Creating new banner')
         const response = await equipmentAPI.createBanner(submitData)
+
         console.log('Banner created:', response)
         setSuccess('Banner created successfully!')
       }
@@ -310,13 +324,15 @@ const BannersPage = () => {
       console.error('Error response status:', err.response?.status)
       console.error('Error message:', err.message)
       console.error('================================')
-      
+
       // Extract detailed error message
       let errorMsg = 'Failed to save banner'
+
       if (err.response?.data) {
         const data = err.response.data
+
         console.log('Parsing error data:', data)
-        
+
         if (typeof data === 'string') {
           errorMsg = data
         } else if (data.detail) {
@@ -328,20 +344,23 @@ const BannersPage = () => {
         } else {
           // Show all field errors
           const errors = []
+
           Object.keys(data).forEach(key => {
             const value = data[key]
+
             if (Array.isArray(value)) {
               errors.push(`${key}: ${value.join(', ')}`)
             } else if (typeof value === 'string') {
               errors.push(`${key}: ${value}`)
             }
           })
+
           if (errors.length > 0) {
             errorMsg = errors.join('; ')
           }
         }
       }
-      
+
       console.log('Final error message:', errorMsg)
       setError(errorMsg)
     } finally {
@@ -350,7 +369,7 @@ const BannersPage = () => {
   }
 
   // Handle delete
-  const handleDelete = async (id) => {
+  const handleDelete = async id => {
     if (!confirm('Are you sure you want to delete this banner?')) {
       return
     }
@@ -371,11 +390,12 @@ const BannersPage = () => {
   }
 
   // Toggle active status
-  const handleToggleActive = async (banner) => {
+  const handleToggleActive = async banner => {
     try {
       const updateData = new FormData()
+
       updateData.append('is_active', !banner.is_active)
-      
+
       await equipmentAPI.updateBanner(banner.id, updateData)
       setSuccess('Banner status updated!')
       await fetchBanners()
@@ -407,11 +427,7 @@ const BannersPage = () => {
           title='Promotional Banners'
           subheader='Manage homepage and promotional banners'
           action={
-            <Button
-              variant='contained'
-              startIcon={<i className='ri-add-line' />}
-              onClick={handleOpenCreate}
-            >
+            <Button variant='contained' startIcon={<i className='ri-add-line' />} onClick={handleOpenCreate}>
               Add Banner
             </Button>
           }
@@ -435,7 +451,7 @@ const BannersPage = () => {
             </Box>
           ) : (
             <Grid container spacing={4}>
-              {banners.map((banner) => (
+              {banners.map(banner => (
                 <Grid item xs={12} key={banner.id}>
                   <Card variant='outlined'>
                     <Grid container>
@@ -453,7 +469,9 @@ const BannersPage = () => {
                             justifyContent: 'center'
                           }}
                         >
-                          {!banner.desktop_image_url && <i className='ri-image-line' style={{ fontSize: 48, opacity: 0.3 }} />}
+                          {!banner.desktop_image_url && (
+                            <i className='ri-image-line' style={{ fontSize: 48, opacity: 0.3 }} />
+                          )}
                         </Box>
                       </Grid>
 
@@ -501,7 +519,7 @@ const BannersPage = () => {
                           )}
 
                           <Box display='flex' gap={1} flexWrap='wrap' mb={2}>
-                            <Chip label={banner.banner_type || 'promotional'} size='small' color='primary' />
+                            <Chip label={banner.banner_type || 'hero'} size='small' color='primary' />
                             <Chip label={banner.position || 'homepage'} size='small' variant='outlined' />
                             {banner.is_active && <Chip label='Active' size='small' color='success' />}
                             {banner.target_category_name && (
@@ -634,7 +652,7 @@ const BannersPage = () => {
                   value={formData.banner_type}
                   onChange={handleChange('banner_type')}
                 >
-                  {bannerTypes.map((option) => (
+                  {bannerTypes.map(option => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
                     </MenuItem>
@@ -649,7 +667,7 @@ const BannersPage = () => {
                   value={formData.position}
                   onChange={handleChange('position')}
                 >
-                  {positions.map((option) => (
+                  {positions.map(option => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
                     </MenuItem>
@@ -666,7 +684,7 @@ const BannersPage = () => {
               onChange={handleChange('target_category')}
             >
               <MenuItem value=''>None</MenuItem>
-              {categories.map((cat) => (
+              {categories.map(cat => (
                 <MenuItem key={cat.id} value={cat.id}>
                   {cat.name}
                 </MenuItem>
@@ -728,12 +746,7 @@ const BannersPage = () => {
             </Grid>
 
             <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.is_active}
-                  onChange={handleChange('is_active')}
-                />
-              }
+              control={<Switch checked={formData.is_active} onChange={handleChange('is_active')} />}
               label='Active (Show on website)'
             />
           </Box>

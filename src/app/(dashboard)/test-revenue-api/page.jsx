@@ -35,10 +35,6 @@ export default function TestRevenueAPIPage() {
 
     try {
       console.log('🧪 Testing rentalsAPI.getRevenueByCategory()...')
-      
-      // Add 3 second delay
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      
       const data = await rentalsAPI.getRevenueByCategory()
 
       console.log('✅ Success! Response:', data)

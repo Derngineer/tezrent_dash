@@ -2,6 +2,7 @@
 
 // React Imports
 import { useState, useEffect } from 'react'
+
 import { useRouter } from 'next/navigation'
 
 // MUI Imports
@@ -50,6 +51,7 @@ const EquipmentDetail = ({ params }) => {
       setLoading(true)
       setError(null)
       const data = await equipmentAPI.getEquipment(params.id)
+
       console.log('Equipment data:', data)
       console.log('Equipment images:', data.images)
       setEquipment(data)
@@ -75,7 +77,7 @@ const EquipmentDetail = ({ params }) => {
     }
   }
 
-  const getCityName = (cityCode) => {
+  const getCityName = cityCode => {
     const cities = {
       DXB: 'Dubai',
       AUH: 'Abu Dhabi',
@@ -89,24 +91,27 @@ const EquipmentDetail = ({ params }) => {
       NAM: 'Namangan',
       AND: 'Andijan'
     }
+
     return cities[cityCode] || cityCode
   }
 
-  const getCountryName = (countryCode) => {
+  const getCountryName = countryCode => {
     const countries = {
       UAE: 'United Arab Emirates',
       UZB: 'Uzbekistan'
     }
+
     return countries[countryCode] || countryCode
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = status => {
     const colors = {
       available: 'success',
       rented: 'warning',
       maintenance: 'error',
       unavailable: 'default'
     }
+
     return colors[status] || 'default'
   }
 
@@ -157,6 +162,13 @@ const EquipmentDetail = ({ params }) => {
             {equipment.featured && (
               <Chip label='Featured' color='primary' size='small' icon={<i className='ri-star-fill' />} />
             )}
+            {equipment.is_new_listing && (
+              <Chip label='New' color='success' size='small' icon={<i className='ri-flashlight-fill' />} />
+            )}
+            {equipment.is_todays_deal && (
+              <Chip label="Today's Deal" color='secondary' size='small' icon={<i className='ri-price-tag-3-fill' />} />
+            )}
+            {!equipment.is_active && <Chip label='Inactive' color='default' size='small' variant='outlined' />}
           </Box>
           <Typography variant='body2' color='text.secondary'>
             Equipment ID: #{equipment.id}
@@ -214,7 +226,7 @@ const EquipmentDetail = ({ params }) => {
                       height: '100%',
                       objectFit: 'cover'
                     }}
-                    onError={(e) => {
+                    onError={e => {
                       console.error('Image failed to load:', equipment.images[selectedImage].image_url)
                       e.target.style.display = 'none'
                       e.target.parentElement.innerHTML = `
@@ -226,12 +238,7 @@ const EquipmentDetail = ({ params }) => {
                     }}
                   />
                 ) : (
-                  <Box
-                    display='flex'
-                    flexDirection='column'
-                    alignItems='center'
-                    justifyContent='center'
-                  >
+                  <Box display='flex' flexDirection='column' alignItems='center' justifyContent='center'>
                     <i className='ri-image-line' style={{ fontSize: 64, opacity: 0.3 }} />
                     <Typography variant='body2' color='text.secondary' mt={2}>
                       No primary image
@@ -243,43 +250,44 @@ const EquipmentDetail = ({ params }) => {
               {/* Thumbnail Images - Only show if multiple images exist */}
               {equipment.images && equipment.images.length > 1 && (
                 <Box display='flex' gap={2} flexWrap='wrap'>
-                  {equipment.images.map((img, index) => (
-                    img.image_url && (
-                      <Box
-                        key={img.id || index}
-                        sx={{
-                          width: 80,
-                          height: 80,
-                          borderRadius: 1,
-                          overflow: 'hidden',
-                          cursor: 'pointer',
-                          border: selectedImage === index ? '2px solid' : '2px solid transparent',
-                          borderColor: selectedImage === index ? 'primary.main' : 'transparent',
-                          opacity: selectedImage === index ? 1 : 0.6,
-                          transition: 'all 0.2s',
-                          '&:hover': {
-                            opacity: 1
-                          },
-                          bgcolor: 'grey.100'
-                        }}
-                        onClick={() => setSelectedImage(index)}
-                      >
-                        <img
-                          src={img.image_url}
-                          alt={`${equipment.name} ${index + 1}`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover'
+                  {equipment.images.map(
+                    (img, index) =>
+                      img.image_url && (
+                        <Box
+                          key={img.id || index}
+                          sx={{
+                            width: 80,
+                            height: 80,
+                            borderRadius: 1,
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            border: selectedImage === index ? '2px solid' : '2px solid transparent',
+                            borderColor: selectedImage === index ? 'primary.main' : 'transparent',
+                            opacity: selectedImage === index ? 1 : 0.6,
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              opacity: 1
+                            },
+                            bgcolor: 'grey.100'
                           }}
-                          onError={(e) => {
-                            console.error('Thumbnail failed to load:', img.image_url)
-                            e.target.style.display = 'none'
-                          }}
-                        />
-                      </Box>
-                    )
-                  ))}
+                          onClick={() => setSelectedImage(index)}
+                        >
+                          <img
+                            src={img.image_url}
+                            alt={`${equipment.name} ${index + 1}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                            onError={e => {
+                              console.error('Thumbnail failed to load:', img.image_url)
+                              e.target.style.display = 'none'
+                            }}
+                          />
+                        </Box>
+                      )
+                  )}
                 </Box>
               )}
             </CardContent>
@@ -296,27 +304,6 @@ const EquipmentDetail = ({ params }) => {
               </Typography>
             </CardContent>
           </Card>
-
-          {/* Specifications */}
-          {equipment.specifications_data && equipment.specifications_data.length > 0 && (
-            <Card sx={{ mt: 4 }}>
-              <CardContent>
-                <Typography variant='h6' gutterBottom>
-                  Specifications
-                </Typography>
-                <Table>
-                  <TableBody>
-                    {equipment.specifications_data.map((spec, index) => (
-                      <TableRow key={index}>
-                        <TableCell sx={{ fontWeight: 500, width: '40%' }}>{spec.name}</TableCell>
-                        <TableCell>{spec.value}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
         </Grid>
 
         {/* Details Section */}
@@ -517,12 +504,7 @@ const EquipmentDetail = ({ params }) => {
                     Category
                   </Typography>
                   {equipment.category ? (
-                    <Chip
-                      label={equipment.category.name}
-                      color='primary'
-                      variant='outlined'
-                      size='small'
-                    />
+                    <Chip label={equipment.category.name} color='primary' variant='outlined' size='small' />
                   ) : (
                     <Typography variant='body2' color='text.secondary'>
                       No category
@@ -551,11 +533,9 @@ const EquipmentDetail = ({ params }) => {
               <CardContent>
                 <Box display='flex' alignItems='center' gap={2} mb={2}>
                   <i className='ri-book-line' style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
-                  <Typography variant='h6'>
-                    Operating Manual
-                  </Typography>
+                  <Typography variant='h6'>Operating Manual</Typography>
                 </Box>
-                
+
                 {equipment.manual_description && (
                   <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
                     {equipment.manual_description}
@@ -575,7 +555,10 @@ const EquipmentDetail = ({ params }) => {
                   }}
                 >
                   <Box display='flex' alignItems='center' gap={2}>
-                    <i className='ri-file-pdf-line' style={{ fontSize: 32, color: 'var(--mui-palette-primary-main)' }} />
+                    <i
+                      className='ri-file-pdf-line'
+                      style={{ fontSize: 32, color: 'var(--mui-palette-primary-main)' }}
+                    />
                     <Box>
                       <Typography variant='body2' fontWeight={600}>
                         Equipment Manual (PDF)
@@ -644,17 +627,13 @@ const EquipmentDetail = ({ params }) => {
                   <Typography variant='body2' color='text.secondary'>
                     Created
                   </Typography>
-                  <Typography variant='body2'>
-                    {new Date(equipment.created_at).toLocaleDateString()}
-                  </Typography>
+                  <Typography variant='body2'>{new Date(equipment.created_at).toLocaleDateString()}</Typography>
                 </Box>
                 <Box display='flex' justifyContent='space-between'>
                   <Typography variant='body2' color='text.secondary'>
                     Last Updated
                   </Typography>
-                  <Typography variant='body2'>
-                    {new Date(equipment.updated_at).toLocaleDateString()}
-                  </Typography>
+                  <Typography variant='body2'>{new Date(equipment.updated_at).toLocaleDateString()}</Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -694,7 +673,7 @@ const EquipmentDetail = ({ params }) => {
                   maxHeight: '100%',
                   objectFit: 'contain'
                 }}
-                onError={(e) => {
+                onError={e => {
                   console.error('Full-size image failed to load:', equipment.images[selectedImage].image_url)
                   e.target.style.display = 'none'
                 }}
@@ -736,7 +715,7 @@ const EquipmentDetail = ({ params }) => {
         <DialogTitle>Delete Equipment?</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{equipment.name}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{equipment.name}&quot;? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
