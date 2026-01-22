@@ -2,6 +2,7 @@
 
 // React Imports
 import { useState, useEffect } from 'react'
+
 import { useParams, useRouter } from 'next/navigation'
 
 // MUI Imports
@@ -42,11 +43,13 @@ const RentalDetail = () => {
   const [rental, setRental] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
   const [updateDialog, setUpdateDialog] = useState({
     open: false,
     newStatus: '',
     notes: ''
   })
+
   const [uploadDialog, setUploadDialog] = useState({
     open: false,
     documentType: '',
@@ -95,6 +98,7 @@ const RentalDetail = () => {
         setError(null)
         setSuccess(null)
       }, 5000)
+
       return () => clearTimeout(timer)
     }
   }, [error, success])
@@ -104,6 +108,7 @@ const RentalDetail = () => {
       setLoading(true)
       setError(null)
       const data = await rentalsAPI.getRental(rentalId)
+
       console.log('Rental detail:', data)
       console.log('Equipment object:', data.equipment)
       console.log('Equipment object keys:', data.equipment ? Object.keys(data.equipment) : 'no equipment')
@@ -163,10 +168,12 @@ const RentalDetail = () => {
     try {
       if (!uploadDialog.file || !uploadDialog.documentType || !uploadDialog.title) {
         setError('Please fill all required fields')
+
         return
       }
 
       const formData = new FormData()
+
       formData.append('file', uploadDialog.file)
       formData.append('document_type', uploadDialog.documentType)
       formData.append('title', uploadDialog.title)
@@ -174,20 +181,20 @@ const RentalDetail = () => {
 
       // Get token from localStorage
       const token = localStorage.getItem('accessToken')
-      
-      const response = await fetch(
-        `http://localhost:8000/api/rentals/rentals/${rentalId}/upload_document/`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        }
-      )
+
+      // Use the API base URL from environment
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://tezrent-api.onrender.com/api/'
+
+      const response = await fetch(`${apiBaseUrl}rentals/rentals/${rentalId}/upload_document/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
 
       const data = await response.json()
-      
+
       if (response.ok) {
         setSuccess('Document uploaded successfully!')
         setUploadDialog({ open: false, documentType: '', file: null, title: '' })
@@ -213,12 +220,14 @@ const RentalDetail = () => {
   const formatDate = dateString => {
     if (!dateString) return 'N/A'
     const date = new Date(dateString)
+
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
   const formatDateTime = dateString => {
     if (!dateString) return 'N/A'
     const date = new Date(dateString)
+
     return date.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -246,11 +255,13 @@ const RentalDetail = () => {
       overdue: 'error',
       dispute: 'error'
     }
+
     return colors[status] || 'default'
   }
 
   const getAvailableStatuses = () => {
     if (!rental) return []
+
     return statusOptions.filter(option => option.allowedFrom.includes(rental.status))
   }
 
@@ -316,17 +327,17 @@ const RentalDetail = () => {
 
             <Grid container spacing={3}>
               <Grid item xs={12} md={4}>
-                {(rental.equipment?.primary_image || 
-                  rental.equipment?.main_image_url || 
-                  rental.equipment?.equipment_image || 
-                  rental.equipment?.image_gallery?.[0]?.url ||
-                  rental.equipment?.images?.[0]?.url) ? (
+                {rental.equipment?.primary_image ||
+                rental.equipment?.main_image_url ||
+                rental.equipment?.equipment_image ||
+                rental.equipment?.image_gallery?.[0]?.url ||
+                rental.equipment?.images?.[0]?.url ? (
                   <Box
                     component='img'
                     src={
-                      rental.equipment?.primary_image || 
-                      rental.equipment?.main_image_url || 
-                      rental.equipment?.equipment_image || 
+                      rental.equipment?.primary_image ||
+                      rental.equipment?.main_image_url ||
+                      rental.equipment?.equipment_image ||
                       rental.equipment?.image_gallery?.[0]?.url ||
                       rental.equipment?.images?.[0]?.url
                     }
@@ -338,7 +349,7 @@ const RentalDetail = () => {
                       borderRadius: 2,
                       backgroundColor: 'grey.200'
                     }}
-                    onError={(e) => {
+                    onError={e => {
                       console.error('Image failed to load:', e.target.src)
                     }}
                   />
@@ -602,6 +613,7 @@ const RentalDetail = () => {
                     startIcon={<i className='ri-close-line' />}
                     onClick={() => {
                       const reason = prompt('Reason for cancellation:')
+
                       if (reason) handleCancel(reason)
                     }}
                   >
@@ -621,12 +633,7 @@ const RentalDetail = () => {
                 </Button>
               )}
 
-              <Button
-                variant='outlined'
-                fullWidth
-                startIcon={<i className='ri-refresh-line' />}
-                onClick={loadRental}
-              >
+              <Button variant='outlined' fullWidth startIcon={<i className='ri-refresh-line' />} onClick={loadRental}>
                 Refresh
               </Button>
 
@@ -721,7 +728,11 @@ const RentalDetail = () => {
 
             {/* Show if equipment has operating manual */}
             {rental.equipment?.operating_manual && (
-              <Box mt={2} p={2} sx={{ backgroundColor: 'info.lighter', borderRadius: 1, border: '1px solid', borderColor: 'info.main' }}>
+              <Box
+                mt={2}
+                p={2}
+                sx={{ backgroundColor: 'info.lighter', borderRadius: 1, border: '1px solid', borderColor: 'info.main' }}
+              >
                 <Box display='flex' alignItems='center' gap={1} mb={1}>
                   <i className='ri-book-line' style={{ color: 'var(--mui-palette-info-main)' }} />
                   <Typography variant='body2' fontWeight={600}>
