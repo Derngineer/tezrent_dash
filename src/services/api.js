@@ -275,7 +275,12 @@ export const equipmentAPI = {
   // Component calls: equipmentAPI.updateEquipment(id, data)
   // HTTP Method decided HERE ↓
   updateEquipment: async (id, data) => {
-    const response = await api.patch(`equipment/equipment/${id}/`, data) // ← PATCH method
+    // Check if data is FormData (has files) or regular object
+    const isFormData = data instanceof FormData
+
+    const response = await api.patch(`equipment/equipment/${id}/`, data, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    })
 
     return response.data
   },

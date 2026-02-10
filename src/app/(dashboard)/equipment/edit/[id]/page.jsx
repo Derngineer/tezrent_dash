@@ -3,7 +3,7 @@
 // React Imports
 import { useState, useEffect } from 'react'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -21,17 +21,21 @@ import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
 import Chip from '@mui/material/Chip'
 import Divider from '@mui/material/Divider'
+import Skeleton from '@mui/material/Skeleton'
 
 // API Imports
 import { equipmentAPI } from '@/services/api'
 
-const AddEquipment = () => {
+const EditEquipment = () => {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const params = useParams()
+  const equipmentId = params.id
+
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState([])
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
-  const [uploadingImages, setUploadingImages] = useState(false)
 
   // Form data - EXACTLY matching backend model
   const [formData, setFormData] = useState({
@@ -39,16 +43,16 @@ const AddEquipment = () => {
     category_id: '',
     description: '',
     manufacturer: '',
-    model_number: '', // Backend field
-    year: '', // Backend field (not manufacture_year)
+    model_number: '',
+    year: '',
     weight: '',
     dimensions: '',
     fuel_type: '',
     daily_rate: '',
     weekly_rate: '',
     monthly_rate: '',
-    country: 'UAE', // Required: 3-letter code
-    city: 'DXB', // Required: 3-letter code
+    country: 'UAE',
+    city: 'DXB',
     status: 'available',
     total_units: 1,
     available_units: 1,
@@ -56,30 +60,91 @@ const AddEquipment = () => {
     is_new_listing: true,
     is_todays_deal: false,
     is_active: true,
-    manual_description: '' // Optional: Description of operating manual
+    manual_description: ''
   })
 
   // Tags
   const [tags, setTags] = useState([])
   const [tagInput, setTagInput] = useState('')
   const [availableTags, setAvailableTags] = useState([])
-  const [loadingTags, setLoadingTags] = useState(false)
 
-  // Image handling
-  const [selectedImages, setSelectedImages] = useState([])
-  const [imagePreviews, setImagePreviews] = useState([])
+  // Existing images from server
+  const [existingImages, setExistingImages] = useState([])
+
+  // New images to upload
+  const [newImages, setNewImages] = useState([])
+  const [newImagePreviews, setNewImagePreviews] = useState([])
 
   // Operating manual handling
-  const [operatingManual, setOperatingManual] = useState(null)
-  const [manualFileName, setManualFileName] = useState('')
+  const [existingManual, setExistingManual] = useState(null)
+  const [newManual, setNewManual] = useState(null)
+  const [newManualFileName, setNewManualFileName] = useState('')
 
   // Form validation
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    loadCategories()
-    loadTags()
-  }, [])
+    if (equipmentId) {
+      loadEquipment()
+      loadCategories()
+      loadTags()
+    }
+  }, [equipmentId])
+
+  const loadEquipment = async () => {
+    try {
+      setLoading(true)
+      const data = await equipmentAPI.getEquipment(equipmentId)
+
+      console.log('Loaded equipment:', data)
+
+      // Populate form data
+      setFormData({
+        name: data.name || '',
+        category_id: data.category?.id || data.category_id || '',
+        description: data.description || '',
+        manufacturer: data.manufacturer || '',
+        model_number: data.model_number || '',
+        year: data.year || '',
+        weight: data.weight || '',
+        dimensions: data.dimensions || '',
+        fuel_type: data.fuel_type || '',
+        daily_rate: data.daily_rate || '',
+        weekly_rate: data.weekly_rate || '',
+        monthly_rate: data.monthly_rate || '',
+        country: data.country || 'UAE',
+        city: data.city || 'DXB',
+        status: data.status || 'available',
+        total_units: data.total_units || 1,
+        available_units: data.available_units || 1,
+        featured: data.featured || false,
+        is_new_listing: data.is_new_listing ?? true,
+        is_todays_deal: data.is_todays_deal || false,
+        is_active: data.is_active ?? true,
+        manual_description: data.manual_description || ''
+      })
+
+      // Set existing images
+      if (data.images && data.images.length > 0) {
+        setExistingImages(data.images)
+      }
+
+      // Set existing tags
+      if (data.tags && data.tags.length > 0) {
+        setTags(data.tags.map(t => t.name || t))
+      }
+
+      // Set existing manual
+      if (data.operating_manual) {
+        setExistingManual(data.operating_manual)
+      }
+    } catch (err) {
+      console.error('Failed to load equipment:', err)
+      setError('Failed to load equipment details')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadCategories = async () => {
     try {
@@ -93,115 +158,116 @@ const AddEquipment = () => {
 
   const loadTags = async () => {
     try {
-      setLoadingTags(true)
       const data = await equipmentAPI.getTags()
 
       setAvailableTags(data.results || data)
     } catch (err) {
       console.error('Failed to load tags:', err)
-    } finally {
-      setLoadingTags(false)
     }
   }
 
   const handleInputChange = (field, value) => {
-    console.log(`Field "${field}" changed to:`, value)
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value }
+    setFormData(prev => ({ ...prev, [field]: value }))
 
-      console.log('Updated formData:', newData)
-
-      return newData
-    })
-
-    // Clear error for this field
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }))
     }
   }
 
   const handleCountryChange = value => {
-    console.log('Country changed to:', value)
-
-    // When country changes, reset city to default for that country
     const defaultCity = value === 'UAE' ? 'DXB' : 'TAS'
 
-    console.log('Resetting city to:', defaultCity)
-    setFormData(prev => {
-      const newData = { ...prev, country: value, city: defaultCity }
-
-      console.log('Updated formData:', newData)
-
-      return newData
-    })
-
-    // Clear errors
-    if (errors.country) {
-      setErrors(prev => ({ ...prev, country: null }))
-    }
-
-    if (errors.city) {
-      setErrors(prev => ({ ...prev, city: null }))
-    }
+    setFormData(prev => ({ ...prev, country: value, city: defaultCity }))
   }
 
-  const handleImageSelect = e => {
+  // Image handling
+  const handleNewImageSelect = e => {
     const files = Array.from(e.target.files)
+    const totalImages = existingImages.length + newImages.length + files.length
 
-    if (files.length + selectedImages.length > 7) {
+    if (totalImages > 7) {
       setError('Maximum 7 images allowed')
 
       return
     }
 
-    setSelectedImages(prev => [...prev, ...files])
+    setNewImages(prev => [...prev, ...files])
 
-    // Create previews
     files.forEach(file => {
       const reader = new FileReader()
 
       reader.onloadend = () => {
-        setImagePreviews(prev => [...prev, reader.result])
+        setNewImagePreviews(prev => [...prev, reader.result])
       }
 
       reader.readAsDataURL(file)
     })
   }
 
-  const handleRemoveImage = index => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index))
-    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+  const handleRemoveExistingImage = async imageId => {
+    try {
+      await equipmentAPI.deleteImage(imageId)
+      setExistingImages(prev => prev.filter(img => img.id !== imageId))
+      setSuccess('Image deleted')
+      setTimeout(() => setSuccess(null), 2000)
+    } catch (err) {
+      setError('Failed to delete image')
+    }
   }
 
+  const handleRemoveNewImage = index => {
+    setNewImages(prev => prev.filter((_, i) => i !== index))
+    setNewImagePreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSetPrimaryImage = async imageId => {
+    try {
+      await equipmentAPI.setPrimaryImage(equipmentId, imageId)
+
+      // Update local state
+      setExistingImages(prev =>
+        prev.map(img => ({
+          ...img,
+          is_primary: img.id === imageId
+        }))
+      )
+      setSuccess('Primary image updated')
+      setTimeout(() => setSuccess(null), 2000)
+    } catch (err) {
+      setError('Failed to set primary image')
+    }
+  }
+
+  // Manual handling
   const handleManualFileChange = e => {
     const file = e.target.files[0]
 
     if (file) {
-      // Validate file type (PDF only)
       if (file.type !== 'application/pdf') {
         setError('Operating manual must be a PDF file')
 
         return
       }
 
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         setError('Operating manual must be less than 10MB')
 
         return
       }
 
-      setOperatingManual(file)
-      setManualFileName(file.name)
+      setNewManual(file)
+      setNewManualFileName(file.name)
       setError(null)
     }
   }
 
   const handleRemoveManual = () => {
-    setOperatingManual(null)
-    setManualFileName('')
+    setNewManual(null)
+    setNewManualFileName('')
+    setExistingManual(null)
   }
 
+  // Tag handling
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()])
@@ -261,7 +327,7 @@ const AddEquipment = () => {
     }
 
     try {
-      setLoading(true)
+      setSaving(true)
       setError(null)
 
       // Create FormData for multipart/form-data
@@ -272,7 +338,6 @@ const AddEquipment = () => {
         const value = formData[key]
 
         if (value !== '' && value !== null && value !== undefined) {
-          // Convert boolean to string for FormData
           if (typeof value === 'boolean') {
             formDataToSend.append(key, value ? 'true' : 'false')
           } else {
@@ -286,18 +351,18 @@ const AddEquipment = () => {
         formDataToSend.append('tag_names', JSON.stringify(tags))
       }
 
-      // Add images directly to FormData (backend expects 'images' field)
-      selectedImages.forEach(image => {
+      // Add NEW images only
+      newImages.forEach(image => {
         formDataToSend.append('images', image)
       })
 
-      // Add operating manual if selected (optional)
-      if (operatingManual) {
-        formDataToSend.append('operating_manual', operatingManual)
+      // Add operating manual if new one selected
+      if (newManual) {
+        formDataToSend.append('operating_manual', newManual)
       }
 
       // Log what we're sending
-      console.log('Submitting equipment data:')
+      console.log('Updating equipment data:')
 
       for (let [key, value] of formDataToSend.entries()) {
         if (value instanceof File) {
@@ -307,32 +372,23 @@ const AddEquipment = () => {
         }
       }
 
-      // Create equipment (images are uploaded with creation)
-      const equipment = await equipmentAPI.createEquipment(formDataToSend)
+      // Update equipment
+      await equipmentAPI.updateEquipment(equipmentId, formDataToSend)
 
-      setSuccess('Equipment added successfully!')
+      setSuccess('Equipment updated successfully!')
 
       // Redirect after 2 seconds
       setTimeout(() => {
         router.push('/equipment')
       }, 2000)
     } catch (err) {
-      console.error('Failed to create equipment:', err)
+      console.error('Failed to update equipment:', err)
       console.error('Error response:', err.response?.data)
-      console.error('Error status:', err.response?.status)
-      console.error('Full error object:', JSON.stringify(err.response?.data, null, 2))
 
-      // Extract detailed error messages
-      let errorMessage = 'Failed to create equipment'
+      let errorMessage = 'Failed to update equipment'
 
       if (err.response?.data) {
         if (typeof err.response.data === 'object') {
-          // Log each field error separately
-          Object.entries(err.response.data).forEach(([field, messages]) => {
-            console.error(`Field "${field}":`, messages)
-          })
-
-          // Handle field-specific errors
           const fieldErrors = Object.entries(err.response.data)
             .map(([field, messages]) => {
               const msgArray = Array.isArray(messages) ? messages : [messages]
@@ -345,15 +401,44 @@ const AddEquipment = () => {
         } else {
           errorMessage = err.response.data.message || err.response.data || errorMessage
         }
-      } else if (err.message) {
-        errorMessage = err.message
       }
 
       setError(errorMessage)
     } finally {
-      setLoading(false)
-      setUploadingImages(false)
+      setSaving(false)
     }
+  }
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <Box>
+        <Box display='flex' justifyContent='space-between' alignItems='center' mb={6}>
+          <Skeleton variant='text' width={300} height={40} />
+          <Skeleton variant='rectangular' width={100} height={36} />
+        </Box>
+        <Grid container spacing={6}>
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Skeleton variant='text' width={200} height={30} sx={{ mb: 4 }} />
+                <Grid container spacing={4}>
+                  <Grid item xs={12} md={6}>
+                    <Skeleton variant='rectangular' height={56} />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Skeleton variant='rectangular' height={56} />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Skeleton variant='rectangular' height={120} />
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+    )
   }
 
   return (
@@ -361,9 +446,9 @@ const AddEquipment = () => {
       {/* Header */}
       <Box display='flex' justifyContent='space-between' alignItems='center' mb={6}>
         <Box>
-          <Typography variant='h4'>Add New Equipment</Typography>
+          <Typography variant='h4'>Edit Equipment</Typography>
           <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-            Fill in the details to add equipment to your inventory
+            Update the details of your equipment
           </Typography>
         </Box>
         <Button variant='outlined' onClick={() => router.push('/equipment')}>
@@ -431,7 +516,7 @@ const AddEquipment = () => {
                       multiline
                       rows={4}
                       label='Description'
-                      placeholder='Detailed description of the equipment, its capabilities, and specifications...'
+                      placeholder='Detailed description of the equipment...'
                       value={formData.description}
                       onChange={e => handleInputChange('description', e.target.value)}
                       error={!!errors.description}
@@ -457,15 +542,12 @@ const AddEquipment = () => {
                       required
                       type='number'
                       label='Daily Rate (AED)'
-                      placeholder='0.00'
                       value={formData.daily_rate}
                       onChange={e => handleInputChange('daily_rate', e.target.value)}
                       error={!!errors.daily_rate}
                       helperText={errors.daily_rate}
                       inputProps={{ min: 0, step: '0.01' }}
-                      InputProps={{
-                        startAdornment: <Typography sx={{ mr: 1 }}>AED</Typography>
-                      }}
+                      InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>AED</Typography> }}
                     />
                   </Grid>
                   <Grid item xs={12} md={6} lg={3}>
@@ -473,15 +555,12 @@ const AddEquipment = () => {
                       fullWidth
                       type='number'
                       label='Weekly Rate (AED)'
-                      placeholder='Optional'
                       value={formData.weekly_rate}
                       onChange={e => handleInputChange('weekly_rate', e.target.value)}
                       error={!!errors.weekly_rate}
                       helperText={errors.weekly_rate}
                       inputProps={{ min: 0, step: '0.01' }}
-                      InputProps={{
-                        startAdornment: <Typography sx={{ mr: 1 }}>AED</Typography>
-                      }}
+                      InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>AED</Typography> }}
                     />
                   </Grid>
                   <Grid item xs={12} md={6} lg={3}>
@@ -489,15 +568,12 @@ const AddEquipment = () => {
                       fullWidth
                       type='number'
                       label='Monthly Rate (AED)'
-                      placeholder='Optional'
                       value={formData.monthly_rate}
                       onChange={e => handleInputChange('monthly_rate', e.target.value)}
                       error={!!errors.monthly_rate}
                       helperText={errors.monthly_rate}
                       inputProps={{ min: 0, step: '0.01' }}
-                      InputProps={{
-                        startAdornment: <Typography sx={{ mr: 1 }}>AED</Typography>
-                      }}
+                      InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>AED</Typography> }}
                     />
                   </Grid>
                 </Grid>
@@ -520,7 +596,6 @@ const AddEquipment = () => {
                     <TextField
                       fullWidth
                       label='Manufacturer'
-                      placeholder='e.g., Caterpillar'
                       value={formData.manufacturer}
                       onChange={e => handleInputChange('manufacturer', e.target.value)}
                     />
@@ -529,7 +604,6 @@ const AddEquipment = () => {
                     <TextField
                       fullWidth
                       label='Model Number'
-                      placeholder='e.g., 320D'
                       value={formData.model_number}
                       onChange={e => handleInputChange('model_number', e.target.value)}
                     />
@@ -539,7 +613,6 @@ const AddEquipment = () => {
                       fullWidth
                       type='number'
                       label='Year'
-                      placeholder='e.g., 2022'
                       value={formData.year}
                       onChange={e => handleInputChange('year', e.target.value)}
                       inputProps={{ min: 1900, max: new Date().getFullYear() + 1 }}
@@ -549,7 +622,6 @@ const AddEquipment = () => {
                     <TextField
                       fullWidth
                       label='Weight'
-                      placeholder='e.g., 20000 kg'
                       value={formData.weight}
                       onChange={e => handleInputChange('weight', e.target.value)}
                     />
@@ -558,7 +630,6 @@ const AddEquipment = () => {
                     <TextField
                       fullWidth
                       label='Dimensions'
-                      placeholder='e.g., 9.5m x 2.8m x 3.1m'
                       value={formData.dimensions}
                       onChange={e => handleInputChange('dimensions', e.target.value)}
                     />
@@ -567,7 +638,6 @@ const AddEquipment = () => {
                     <TextField
                       fullWidth
                       label='Fuel Type'
-                      placeholder='e.g., Diesel, Electric'
                       value={formData.fuel_type}
                       onChange={e => handleInputChange('fuel_type', e.target.value)}
                     />
@@ -628,12 +698,11 @@ const AddEquipment = () => {
                     <Divider sx={{ my: 2 }} />
                   </Grid>
 
+                  {/* Tags */}
                   <Grid item xs={12}>
                     <Typography variant='body2' fontWeight={600} gutterBottom>
                       Tags (Optional)
                     </Typography>
-
-                    {/* Selected Tags */}
                     {tags.length > 0 && (
                       <Box display='flex' gap={1} flexWrap='wrap' mb={2}>
                         {tags.map((tag, index) => (
@@ -641,8 +710,6 @@ const AddEquipment = () => {
                         ))}
                       </Box>
                     )}
-
-                    {/* Existing Tags - Quick Select */}
                     {availableTags.length > 0 && (
                       <Box mb={2}>
                         <Typography variant='caption' color='text.secondary' display='block' mb={1}>
@@ -660,24 +727,18 @@ const AddEquipment = () => {
                                 size='small'
                                 sx={{
                                   cursor: 'pointer',
-                                  '&:hover': {
-                                    backgroundColor: 'primary.main',
-                                    color: 'primary.contrastText'
-                                  }
+                                  '&:hover': { backgroundColor: 'primary.main', color: 'white' }
                                 }}
                               />
                             ))}
                         </Box>
                       </Box>
                     )}
-
-                    {/* Add New Tag */}
                     <Box display='flex' gap={2}>
                       <TextField
                         fullWidth
                         size='small'
                         label='Create New Tag'
-                        placeholder='e.g., Heavy Equipment, Construction'
                         value={tagInput}
                         onChange={e => setTagInput(e.target.value)}
                         onKeyPress={e => {
@@ -688,8 +749,7 @@ const AddEquipment = () => {
                         }}
                       />
                       <Button variant='outlined' onClick={handleAddTag} disabled={!tagInput.trim()}>
-                        <i className='ri-add-line' style={{ marginRight: 4 }} />
-                        Add New
+                        Add
                       </Button>
                     </Box>
                   </Grid>
@@ -762,27 +822,21 @@ const AddEquipment = () => {
                   <Grid item xs={12} md={4}>
                     <TextField
                       fullWidth
-                      required
                       type='number'
                       label='Total Units'
-                      placeholder='Total number of units'
                       value={formData.total_units}
                       onChange={e => handleInputChange('total_units', e.target.value)}
                       inputProps={{ min: 1 }}
-                      helperText='Total units owned'
                     />
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <TextField
                       fullWidth
-                      required
                       type='number'
                       label='Available Units'
-                      placeholder='Available for rent'
                       value={formData.available_units}
                       onChange={e => handleInputChange('available_units', e.target.value)}
                       inputProps={{ min: 0 }}
-                      helperText='Currently available'
                     />
                   </Grid>
                 </Grid>
@@ -798,15 +852,18 @@ const AddEquipment = () => {
                   Images
                 </Typography>
                 <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
-                  Upload up to 7 images. First image will be set as primary.
+                  Manage equipment images. Click the star to set primary image.
                 </Typography>
 
-                {/* Image Previews */}
-                {imagePreviews.length > 0 && (
+                {/* Existing Images */}
+                {existingImages.length > 0 && (
                   <Box sx={{ mb: 3 }}>
+                    <Typography variant='subtitle2' sx={{ mb: 2 }}>
+                      Current Images
+                    </Typography>
                     <Grid container spacing={2}>
-                      {imagePreviews.map((preview, index) => (
-                        <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
+                      {existingImages.map((image, index) => (
+                        <Grid item xs={6} sm={4} md={3} lg={2} key={image.id}>
                           <Box
                             sx={{
                               position: 'relative',
@@ -814,7 +871,75 @@ const AddEquipment = () => {
                               borderRadius: 1,
                               overflow: 'hidden',
                               border: '2px solid',
-                              borderColor: index === 0 ? 'primary.main' : 'divider'
+                              borderColor: image.is_primary ? 'primary.main' : 'divider'
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundImage: `url(${image.image || image.url})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center'
+                              }}
+                            />
+                            {image.is_primary && (
+                              <Chip
+                                label='Primary'
+                                size='small'
+                                color='primary'
+                                sx={{ position: 'absolute', top: 8, left: 8 }}
+                              />
+                            )}
+                            <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5 }}>
+                              {!image.is_primary && (
+                                <IconButton
+                                  size='small'
+                                  onClick={() => handleSetPrimaryImage(image.id)}
+                                  sx={{ bgcolor: 'background.paper' }}
+                                  title='Set as primary'
+                                >
+                                  <i className='ri-star-line' />
+                                </IconButton>
+                              )}
+                              <IconButton
+                                size='small'
+                                onClick={() => handleRemoveExistingImage(image.id)}
+                                sx={{
+                                  bgcolor: 'background.paper',
+                                  '&:hover': { bgcolor: 'error.main', color: 'white' }
+                                }}
+                              >
+                                <i className='ri-close-line' />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                )}
+
+                {/* New Images Preview */}
+                {newImagePreviews.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant='subtitle2' sx={{ mb: 2 }}>
+                      New Images (will be uploaded on save)
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {newImagePreviews.map((preview, index) => (
+                        <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
+                          <Box
+                            sx={{
+                              position: 'relative',
+                              paddingTop: '100%',
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              border: '2px dashed',
+                              borderColor: 'success.main'
                             }}
                           >
                             <Box
@@ -829,17 +954,15 @@ const AddEquipment = () => {
                                 backgroundPosition: 'center'
                               }}
                             />
-                            {index === 0 && (
-                              <Chip
-                                label='Primary'
-                                size='small'
-                                color='primary'
-                                sx={{ position: 'absolute', top: 8, left: 8 }}
-                              />
-                            )}
+                            <Chip
+                              label='New'
+                              size='small'
+                              color='success'
+                              sx={{ position: 'absolute', top: 8, left: 8 }}
+                            />
                             <IconButton
                               size='small'
-                              onClick={() => handleRemoveImage(index)}
+                              onClick={() => handleRemoveNewImage(index)}
                               sx={{
                                 position: 'absolute',
                                 top: 8,
@@ -858,13 +981,13 @@ const AddEquipment = () => {
                 )}
 
                 {/* Upload Button */}
-                <Button variant='outlined' component='label' disabled={selectedImages.length >= 7}>
+                <Button variant='outlined' component='label' disabled={existingImages.length + newImages.length >= 7}>
                   <i className='ri-upload-2-line' style={{ marginRight: 8 }} />
-                  Choose Images
-                  <input type='file' hidden multiple accept='image/*' onChange={handleImageSelect} />
+                  Add More Images
+                  <input type='file' hidden multiple accept='image/*' onChange={handleNewImageSelect} />
                 </Button>
                 <Typography variant='caption' color='text.secondary' sx={{ ml: 2 }}>
-                  {selectedImages.length}/7 images selected
+                  {existingImages.length + newImages.length}/7 images
                 </Typography>
               </CardContent>
             </Card>
@@ -878,12 +1001,45 @@ const AddEquipment = () => {
                   Operating Manual (Optional)
                 </Typography>
                 <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
-                  Upload a PDF operating manual or user guide. This will be available to customers after booking
-                  confirmation.
+                  Upload a PDF operating manual or user guide.
                 </Typography>
 
-                {/* Manual File Display */}
-                {manualFileName ? (
+                {/* Existing Manual */}
+                {existingManual && !newManual && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      mb: 2,
+                      border: '1px solid',
+                      borderColor: 'primary.main',
+                      borderRadius: 1,
+                      backgroundColor: 'primary.lighter',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <Box display='flex' alignItems='center' gap={1}>
+                      <i className='ri-file-pdf-line' style={{ fontSize: 24 }} />
+                      <Box>
+                        <Typography variant='body2' fontWeight={600}>
+                          Current Manual
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          <a href={existingManual} target='_blank' rel='noopener noreferrer'>
+                            View PDF
+                          </a>
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <IconButton size='small' onClick={handleRemoveManual} color='error'>
+                      <i className='ri-close-line' />
+                    </IconButton>
+                  </Box>
+                )}
+
+                {/* New Manual */}
+                {newManualFileName && (
                   <Box
                     sx={{
                       p: 2,
@@ -904,10 +1060,10 @@ const AddEquipment = () => {
                       />
                       <Box>
                         <Typography variant='body2' fontWeight={600}>
-                          {manualFileName}
+                          {newManualFileName}
                         </Typography>
                         <Typography variant='caption' color='text.secondary'>
-                          PDF Document
+                          New PDF (will replace existing)
                         </Typography>
                       </Box>
                     </Box>
@@ -915,7 +1071,10 @@ const AddEquipment = () => {
                       <i className='ri-close-line' />
                     </IconButton>
                   </Box>
-                ) : (
+                )}
+
+                {/* Upload New Manual */}
+                {!newManualFileName && !existingManual && (
                   <Box
                     sx={{
                       border: '2px dashed',
@@ -946,41 +1105,24 @@ const AddEquipment = () => {
                   </Box>
                 )}
 
+                {(existingManual || newManualFileName) && !newManualFileName && (
+                  <Button variant='outlined' component='label' size='small'>
+                    Replace Manual
+                    <input type='file' hidden accept='application/pdf' onChange={handleManualFileChange} />
+                  </Button>
+                )}
+
                 {/* Manual Description */}
                 <TextField
                   fullWidth
                   multiline
                   rows={3}
                   label='Manual Description'
-                  placeholder="Describe what's included in the manual (e.g., Safety instructions, maintenance guide, troubleshooting)"
+                  placeholder="Describe what's included in the manual..."
                   value={formData.manual_description}
                   onChange={e => handleInputChange('manual_description', e.target.value)}
-                  helperText='Optional: Helps customers understand what information is available'
+                  sx={{ mt: 2 }}
                 />
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Additional Options */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant='h6' sx={{ mb: 3 }}>
-                  Additional Options
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.featured}
-                          onChange={e => handleInputChange('featured', e.target.checked)}
-                        />
-                      }
-                      label='Feature this equipment (appears prominently in listings)'
-                    />
-                  </Grid>
-                </Grid>
               </CardContent>
             </Card>
           </Grid>
@@ -988,16 +1130,16 @@ const AddEquipment = () => {
           {/* Submit Button */}
           <Grid item xs={12}>
             <Box display='flex' gap={2} justifyContent='flex-end'>
-              <Button variant='outlined' onClick={() => router.push('/equipment')} disabled={loading}>
+              <Button variant='outlined' onClick={() => router.push('/equipment')} disabled={saving}>
                 Cancel
               </Button>
               <Button
                 type='submit'
                 variant='contained'
-                disabled={loading || uploadingImages}
-                startIcon={loading || uploadingImages ? <CircularProgress size={20} /> : <i className='ri-add-line' />}
+                disabled={saving}
+                startIcon={saving ? <CircularProgress size={20} /> : <i className='ri-save-line' />}
               >
-                {uploadingImages ? 'Uploading Images...' : loading ? 'Creating...' : 'Add Equipment'}
+                {saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </Box>
           </Grid>
@@ -1007,4 +1149,4 @@ const AddEquipment = () => {
   )
 }
 
-export default AddEquipment
+export default EditEquipment
