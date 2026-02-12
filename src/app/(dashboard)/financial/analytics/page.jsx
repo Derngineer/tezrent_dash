@@ -169,7 +169,7 @@ const AnalyticsPage = () => {
       type: 'area',
       toolbar: { show: false }
     },
-    colors: [theme?.palette?.primary?.main || '#165DFC'],
+    colors: [theme?.palette?.primary?.main || '#696cff'],
     stroke: {
       curve: 'smooth',
       width: 3
@@ -438,7 +438,7 @@ const AnalyticsPage = () => {
 
         {/* Data Flow Explanation Card */}
         <Grid item xs={12} lg={6}>
-          <Card sx={{ bgcolor: theme?.palette?.primary?.main || '#165DFC', color: 'white' }}>
+          <Card sx={{ bgcolor: theme?.palette?.primary?.main || '#696cff', color: 'white' }}>
             <CardContent>
               <Typography variant='h6' sx={{ mb: 3 }}>
                 📊 Data Flow Process

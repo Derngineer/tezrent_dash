@@ -1,493 +1,464 @@
 'use client'
 
-// React Imports
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
-// Next Imports
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import styled from '@emotion/styled'
+import { keyframes } from '@emotion/react'
 
-// MUI Imports
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import Typography from '@mui/material/Typography'
-import TextField from '@mui/material/TextField'
-import IconButton from '@mui/material/IconButton'
-import InputAdornment from '@mui/material/InputAdornment'
-import Checkbox from '@mui/material/Checkbox'
-import Button from '@mui/material/Button'
-import FormControlLabel from '@mui/material/FormControlLabel'
-import Divider from '@mui/material/Divider'
-import Alert from '@mui/material/Alert'
-import CircularProgress from '@mui/material/CircularProgress'
-import MenuItem from '@mui/material/MenuItem'
-import Grid from '@mui/material/Grid'
+import Link from '@components/Link'
+import api from '@/services/api'
 
-// Component Imports
-import Illustrations from '@components/Illustrations'
-import Logo from '@components/layout/shared/Logo'
+const BRAND_BLUE = '#696cff'
 
-// Hook Imports
-import { useImageVariant } from '@core/hooks/useImageVariant'
-
-// API Imports
-import { authAPI } from '@/services/api'
-
-// Country and City choices matching backend
-const COUNTRY_CHOICES = [
+const COUNTRIES = [
   { value: 'UAE', label: 'United Arab Emirates' },
   { value: 'UZB', label: 'Uzbekistan' }
 ]
 
-const UAE_CITY_CHOICES = [
-  { value: 'AUH', label: 'Abu Dhabi' },
-  { value: 'DXB', label: 'Dubai' },
-  { value: 'SHJ', label: 'Sharjah' },
-  { value: 'AJM', label: 'Ajman' },
-  { value: 'UAQ', label: 'Umm Al Quwain' },
-  { value: 'FUJ', label: 'Fujairah' },
-  { value: 'RAK', label: 'Ras Al Khaimah' }
+const CITIES_BY_COUNTRY = {
+  UAE: [
+    { value: 'DXB', label: 'Dubai' },
+    { value: 'AUH', label: 'Abu Dhabi' },
+    { value: 'SHJ', label: 'Sharjah' },
+    { value: 'AJM', label: 'Ajman' },
+    { value: 'UAQ', label: 'Umm Al Quwain' },
+    { value: 'FUJ', label: 'Fujairah' },
+    { value: 'RAK', label: 'Ras Al Khaimah' }
+  ],
+  UZB: [
+    { value: 'TAS', label: 'Tashkent' },
+    { value: 'SAM', label: 'Samarkand' },
+    { value: 'NAM', label: 'Namangan' },
+    { value: 'AND', label: 'Andijan' }
+  ]
+}
+
+const BUSINESS_TYPES = [
+  { value: 'rental', label: 'Equipment Rental' },
+  { value: 'construction', label: 'Construction' },
+  { value: 'events', label: 'Events & Entertainment' },
+  { value: 'logistics', label: 'Logistics' },
+  { value: 'other', label: 'Other' }
 ]
 
-const UZB_CITY_CHOICES = [
-  { value: 'TAS', label: 'Tashkent' },
-  { value: 'SAM', label: 'Samarkand' },
-  { value: 'NAM', label: 'Namangan' },
-  { value: 'AND', label: 'Andijan' }
+const QUESTIONS = [
+  { key: 'company_name', question: "What's your company name?", placeholder: 'Acme Equipment Rentals', type: 'text', required: true },
+  { key: 'business_type', question: 'What type of business are you in?', type: 'select', options: 'BUSINESS_TYPES', required: true },
+  { key: 'country', question: 'Which country is your business located in?', type: 'select', options: 'COUNTRIES', required: true },
+  { key: 'city', question: 'Which city?', type: 'select', options: 'CITIES', dynamic: true, required: true },
+  { key: 'company_address', question: "What's your business address?", placeholder: '123 Industrial Area', type: 'text', required: true },
+  { key: 'company_phone', question: "What's your company phone number?", placeholder: '+971 4 123 4567', type: 'tel', required: true },
+  { key: 'tax_number', question: 'Tax registration number?', placeholder: 'TRN123456789 (optional)', type: 'text', required: false },
+  { key: 'first_name', question: "What's your first name?", placeholder: 'John', type: 'text', required: true },
+  { key: 'last_name', question: 'And your last name?', placeholder: 'Smith', type: 'text', required: true },
+  { key: 'phone_number', question: "What's your phone number?", placeholder: '+971 50 123 4567', type: 'tel', required: true },
+  { key: 'email', question: "What's your email address?", placeholder: 'john@company.com', type: 'email', required: true },
+  { key: 'password', question: 'Create a password', placeholder: '8+ characters', type: 'password', required: true },
+  { key: 'confirmPassword', question: 'Confirm your password', placeholder: 'Re-enter password', type: 'password', required: true }
 ]
 
-const Register = ({ mode }) => {
-  // States
-  const [isPasswordShown, setIsPasswordShown] = useState(false)
-  const [isConfirmPasswordShown, setIsConfirmPasswordShown] = useState(false)
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    first_name: '',
-    last_name: '',
-    phone_number: '',
-    country: 'UAE',
-    company_name: '',
-    business_type: '',
-    company_address: '',
-    city: 'DXB',
-    tax_number: '',
-    company_phone: ''
-  })
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+`
 
-  // Vars
-  const darkImg = '/images/pages/auth-v1-mask-dark.png'
-  const lightImg = '/images/pages/auth-v1-mask-light.png'
+const Container = styled.div`
+  min-height: 100vh;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+`
 
-  // Hooks
-  const router = useRouter()
-  const authBackground = useImageVariant(mode, lightImg, darkImg)
-  const handleClickShowPassword = () => setIsPasswordShown(show => !show)
-  const handleClickShowConfirmPassword = () => setIsConfirmPasswordShown(show => !show)
+const Header = styled.header`
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`
 
-  const handleChange = (field) => (event) => {
-    setFormData({ ...formData, [field]: event.target.value })
-    setError('') // Clear error on input change
+const Logo = styled.div`
+  font-size: 24px;
+  font-weight: 700;
+  color: ${BRAND_BLUE};
+`
+
+const ProgressContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #e0e0e0;
+  z-index: 1000;
+`
+
+const ProgressBar = styled.div`
+  height: 100%;
+  background: ${BRAND_BLUE};
+  transition: width 0.3s ease;
+  width: ${props => props.progress}%;
+`
+
+const Main = styled.main`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+`
+
+const QuestionContainer = styled.div`
+  animation: ${fadeIn} 0.4s ease-out;
+`
+
+const Question = styled.h1`
+  font-size: 32px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 40px;
+  line-height: 1.3;
+`
+
+const TextInput = styled.input`
+  width: 100%;
+  padding: 16px 0;
+  font-size: 24px;
+  border: none;
+  border-bottom: 2px solid #e0e0e0;
+  background: transparent;
+  color: #1a1a1a;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &:focus {
+    border-bottom-color: ${BRAND_BLUE};
   }
 
-  const handleCountryChange = (event) => {
-    const country = event.target.value
-    // Set default city based on country
-    const defaultCity = country === 'UAE' ? 'DXB' : 'TAS'
-    setFormData({ ...formData, country, city: defaultCity })
+  &::placeholder {
+    color: #bbb;
+  }
+`
+
+const SelectContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+`
+
+const SelectOption = styled.button`
+  padding: 14px 24px;
+  font-size: 16px;
+  border: 2px solid ${props => props.selected ? BRAND_BLUE : '#e0e0e0'};
+  border-radius: 8px;
+  background: ${props => props.selected ? BRAND_BLUE : 'transparent'};
+  color: ${props => props.selected ? '#ffffff' : '#1a1a1a'};
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: ${BRAND_BLUE};
+  }
+`
+
+const ButtonContainer = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-top: 40px;
+`
+
+const ContinueButton = styled.button`
+  padding: 16px 40px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: ${BRAND_BLUE};
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #5a5de8;
+  }
+
+  &:disabled {
+    background: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+  }
+`
+
+const SkipButton = styled.button`
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #ccc;
+  }
+`
+
+const BackButton = styled.button`
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+
+  &:hover {
+    color: #1a1a1a;
+  }
+`
+
+const ErrorMessage = styled.p`
+  color: #e53935;
+  font-size: 14px;
+  margin-top: 8px;
+`
+
+const HelperText = styled.p`
+  color: #888;
+  font-size: 14px;
+  margin-top: 16px;
+`
+
+const Footer = styled.footer`
+  padding: 24px 40px;
+  text-align: center;
+`
+
+const FooterLink = styled.span`
+  color: #666;
+  font-size: 14px;
+
+  a {
+    color: ${BRAND_BLUE};
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+`
+
+const Register = () => {
+  const router = useRouter()
+  const inputRef = useRef(null)
+  const [currentStep, setCurrentStep] = useState(0)
+  const [formData, setFormData] = useState({})
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const currentQuestion = QUESTIONS[currentStep]
+  const progress = ((currentStep + 1) / QUESTIONS.length) * 100
+
+  const getCityOptions = () => {
+    const country = formData.country
+
+    return country ? CITIES_BY_COUNTRY[country] || [] : []
+  }
+
+  const getOptions = () => {
+    if (currentQuestion.key === 'city') return getCityOptions()
+    if (currentQuestion.options === 'BUSINESS_TYPES') return BUSINESS_TYPES
+    if (currentQuestion.options === 'COUNTRIES') return COUNTRIES
+
+    return []
+  }
+
+  useEffect(() => {
+    if (inputRef.current && currentQuestion.type !== 'select') {
+      inputRef.current.focus()
+    }
+  }, [currentStep])
+
+  const validateField = () => {
+    const value = formData[currentQuestion.key]
+
+    if (currentQuestion.required && !value) {
+      setError('This field is required')
+
+      return false
+    }
+
+    if (currentQuestion.key === 'email' && value) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+      if (!emailRegex.test(value)) {
+        setError('Please enter a valid email address')
+
+        return false
+      }
+    }
+
+    if (currentQuestion.key === 'password' && value && value.length < 8) {
+      setError('Password must be at least 8 characters')
+
+      return false
+    }
+
+    if (currentQuestion.key === 'confirmPassword' && value !== formData.password) {
+      setError('Passwords do not match')
+
+      return false
+    }
+
+    setError('')
+
+    return true
+  }
+
+  const handleContinue = async () => {
+    if (!validateField()) return
+
+    if (currentStep < QUESTIONS.length - 1) {
+      setCurrentStep(prev => prev + 1)
+    } else {
+      await handleSubmit()
+    }
+  }
+
+  const handleSkip = () => {
+    if (!currentQuestion.required) {
+      setError('')
+
+      if (currentStep < QUESTIONS.length - 1) {
+        setCurrentStep(prev => prev + 1)
+      }
+    }
+  }
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setError('')
+      setCurrentStep(prev => prev - 1)
+    }
+  }
+
+  const handleSubmit = async () => {
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const { confirmPassword, ...submitData } = formData
+
+      await api.post('/accounts/register/', submitData)
+      router.push('/login?registered=true')
+    } catch (err) {
+      const errorData = err.response?.data
+
+      if (errorData) {
+        const firstError = Object.values(errorData)[0]
+
+        setError(Array.isArray(firstError) ? firstError[0] : firstError)
+      } else {
+        setError('Registration failed. Please try again.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleInputChange = value => {
+    setFormData(prev => ({ ...prev, [currentQuestion.key]: value }))
     setError('')
   }
 
-  // Get city choices based on selected country
-  const getCityChoices = () => {
-    return formData.country === 'UAE' ? UAE_CITY_CHOICES : UZB_CITY_CHOICES
+  const handleKeyDown = e => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleContinue()
+    }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    // STEP 1: VALIDATION - Check if all required fields are filled
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
-      setError('Please fill in all required fields')
-      return
-    }
+  const handleSelectOption = value => {
+    setFormData(prev => ({ ...prev, [currentQuestion.key]: value }))
+    setError('')
 
-    if (!agreedToTerms) {
-      setError('Please agree to the privacy policy and terms')
-      return
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
-      return
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError('')
-
-      // STEP 2: API CALL - THIS IS WHERE THE ENDPOINT IS CALLED
-      // authAPI.register() is imported from '@/services/api' (line 31 above)
-      // It sends a POST request to: http://localhost:8000/api/accounts/register/company/
-      // Backend expects: { email, username, password, confirm_password, first_name, last_name, phone_number, profile: {...} }
-      
-      // Prepare data for backend matching the exact structure
-      const registrationData = {
-        email: formData.email,
-        username: formData.username,
-        password: formData.password,
-        confirm_password: formData.confirmPassword,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone_number: formData.phone_number,
-        country: formData.country,
-        profile: {
-          company_name: formData.company_name,
-          business_type: formData.business_type,
-          company_address: formData.company_address,
-          city: formData.city,
-          tax_number: formData.tax_number,
-          company_phone: formData.company_phone
-        }
+    setTimeout(() => {
+      if (currentStep < QUESTIONS.length - 1) {
+        setCurrentStep(prev => prev + 1)
       }
+    }, 200)
+  }
 
-      console.log('=== REGISTRATION DATA BEING SENT ===')
-      console.log(JSON.stringify(registrationData, null, 2))
-      console.log('====================================')
+  const renderInput = () => {
+    if (currentQuestion.type === 'select') {
+      const options = getOptions()
 
-      const response = await authAPI.register(registrationData)
-
-      // STEP 3: SUCCESS - Show success message
-      setSuccess(true)
-      
-      // STEP 4: REDIRECT - Send user to login page after 2 seconds
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
-
-    } catch (err) {
-      // STEP 5: ERROR HANDLING - Show error if registration fails
-      console.error('Registration failed:', err)
-      console.error('Error response data:', err.response?.data)
-      console.error('Error response status:', err.response?.status)
-      
-      // Handle validation errors from backend
-      if (err.response?.data) {
-        const errorData = err.response.data
-        console.log('Backend error details:', JSON.stringify(errorData, null, 2))
-        
-        // Try to extract error message from various possible formats
-        let errorMessage = 'Registration failed. Please try again.'
-        
-        if (typeof errorData === 'string') {
-          errorMessage = errorData
-        } else if (errorData.message) {
-          errorMessage = errorData.message
-        } else if (errorData.error) {
-          errorMessage = errorData.error
-        } else if (errorData.detail) {
-          errorMessage = errorData.detail
-        } else {
-          // Check for field-specific errors
-          const fieldErrors = []
-          Object.keys(errorData).forEach(key => {
-            if (Array.isArray(errorData[key])) {
-              fieldErrors.push(`${key}: ${errorData[key].join(', ')}`)
-            } else if (typeof errorData[key] === 'object') {
-              Object.keys(errorData[key]).forEach(nestedKey => {
-                fieldErrors.push(`${key}.${nestedKey}: ${errorData[key][nestedKey]}`)
-              })
-            } else {
-              fieldErrors.push(`${key}: ${errorData[key]}`)
-            }
-          })
-          if (fieldErrors.length > 0) {
-            errorMessage = fieldErrors.join('\n')
-          }
-        }
-        
-        setError(errorMessage)
-      } else {
-        setError(err.message || 'Registration failed. Please try again.')
-      }
-    } finally {
-      setLoading(false)
+      return (
+        <SelectContainer>
+          {options.map(option => (
+            <SelectOption
+              key={option.value}
+              selected={formData[currentQuestion.key] === option.value}
+              onClick={() => handleSelectOption(option.value)}
+            >
+              {option.label}
+            </SelectOption>
+          ))}
+        </SelectContainer>
+      )
     }
+
+    return (
+      <TextInput
+        ref={inputRef}
+        type={currentQuestion.type}
+        placeholder={currentQuestion.placeholder}
+        value={formData[currentQuestion.key] || ''}
+        onChange={e => handleInputChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+      />
+    )
   }
 
   return (
-    <div className='flex flex-col justify-center items-center min-bs-[100dvh] relative p-6'>
-      <Card className='flex flex-col sm:is-[450px]'>
-        <CardContent className='p-6 sm:!p-12'>
-          <Link href='/' className='flex justify-center items-start mbe-6'>
-            <Logo />
-          </Link>
-          <Typography variant='h4'>Adventure starts here 🚀</Typography>
-          <div className='flex flex-col gap-5'>
-            <Typography className='mbs-1'>Make your app management easy and fun!</Typography>
-            
-            {/* Success Alert */}
-            {success && (
-              <Alert severity='success'>
-                Registration successful! Redirecting to login...
-              </Alert>
+    <Container>
+      <ProgressContainer>
+        <ProgressBar progress={progress} />
+      </ProgressContainer>
+      <Header>
+        <Logo>tezrent</Logo>
+      </Header>
+      <Main>
+        <QuestionContainer key={currentStep}>
+          <Question>{currentQuestion.question}</Question>
+          {renderInput()}
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+          {currentQuestion.type !== 'select' && <HelperText>Press Enter to continue</HelperText>}
+          <ButtonContainer>
+            {currentStep > 0 && <BackButton onClick={handleBack}>Back</BackButton>}
+            {!currentQuestion.required && currentQuestion.type !== 'select' && (
+              <SkipButton onClick={handleSkip}>Skip</SkipButton>
             )}
-            
-            {/* Error Alert */}
-            {error && (
-              <Alert severity='error' onClose={() => setError('')}>
-                {error}
-              </Alert>
+            {currentQuestion.type !== 'select' && (
+              <ContinueButton onClick={handleContinue} disabled={isLoading}>
+                {isLoading ? 'Please wait...' : currentStep === QUESTIONS.length - 1 ? 'Create Account' : 'Continue'}
+              </ContinueButton>
             )}
-            
-            <form noValidate autoComplete='off' onSubmit={handleSubmit} className='flex flex-col gap-5'>
-              <TextField 
-                autoFocus 
-                fullWidth 
-                label='Username' 
-                value={formData.username}
-                onChange={handleChange('username')}
-                disabled={loading}
-                required
-              />
-              <TextField 
-                fullWidth 
-                label='Email' 
-                type='email'
-                value={formData.email}
-                onChange={handleChange('email')}
-                disabled={loading}
-                required
-              />
-              
-              {/* Personal Information */}
-              <div className='grid grid-cols-2 gap-4'>
-                <TextField 
-                  fullWidth 
-                  label='First Name' 
-                  value={formData.first_name}
-                  onChange={handleChange('first_name')}
-                  disabled={loading}
-                  required
-                />
-                <TextField 
-                  fullWidth 
-                  label='Last Name' 
-                  value={formData.last_name}
-                  onChange={handleChange('last_name')}
-                  disabled={loading}
-                  required
-                />
-              </div>
-              
-              <TextField 
-                fullWidth 
-                label='Phone Number' 
-                placeholder='+971501234567'
-                value={formData.phone_number}
-                onChange={handleChange('phone_number')}
-                disabled={loading}
-                required
-              />
-              
-              <TextField
-                select
-                fullWidth
-                label='Country'
-                value={formData.country}
-                onChange={handleCountryChange}
-                disabled={loading}
-                required
-              >
-                {COUNTRY_CHOICES.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              
-              {/* Company Information */}
-              <Divider>Company Information</Divider>
-              
-              <TextField 
-                fullWidth 
-                label='Company Name' 
-                value={formData.company_name}
-                onChange={handleChange('company_name')}
-                disabled={loading}
-                required
-              />
-              
-              <TextField 
-                fullWidth 
-                label='Business Type' 
-                placeholder='Equipment Rental'
-                value={formData.business_type}
-                onChange={handleChange('business_type')}
-                disabled={loading}
-                required
-              />
-              
-              <TextField 
-                fullWidth 
-                label='Company Address' 
-                value={formData.company_address}
-                onChange={handleChange('company_address')}
-                disabled={loading}
-                required
-              />
-              
-              <div className='grid grid-cols-2 gap-4'>
-                <TextField
-                  select
-                  fullWidth 
-                  label='City' 
-                  value={formData.city}
-                  onChange={handleChange('city')}
-                  disabled={loading}
-                  required
-                >
-                  {getCityChoices().map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField 
-                  fullWidth 
-                  label='Tax Number' 
-                  value={formData.tax_number}
-                  onChange={handleChange('tax_number')}
-                  disabled={loading}
-                  required
-                />
-              </div>
-              
-              <TextField 
-                fullWidth 
-                label='Company Phone' 
-                placeholder='+971501234567'
-                value={formData.company_phone}
-                onChange={handleChange('company_phone')}
-                disabled={loading}
-                required
-              />
-              
-              {/* Password Fields */}
-              <Divider>Security</Divider>
-              
-              <TextField
-                fullWidth
-                label='Password'
-                type={isPasswordShown ? 'text' : 'password'}
-                value={formData.password}
-                onChange={handleChange('password')}
-                disabled={loading}
-                required
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position='end'>
-                      <IconButton
-                        size='small'
-                        edge='end'
-                        onClick={handleClickShowPassword}
-                        onMouseDown={e => e.preventDefault()}
-                        disabled={loading}
-                      >
-                        <i className={isPasswordShown ? 'ri-eye-off-line' : 'ri-eye-line'} />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-              <TextField
-                fullWidth
-                label='Confirm Password'
-                type={isConfirmPasswordShown ? 'text' : 'password'}
-                value={formData.confirmPassword}
-                onChange={handleChange('confirmPassword')}
-                disabled={loading}
-                required
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position='end'>
-                      <IconButton
-                        size='small'
-                        edge='end'
-                        onClick={handleClickShowConfirmPassword}
-                        onMouseDown={e => e.preventDefault()}
-                        disabled={loading}
-                      >
-                        <i className={isConfirmPasswordShown ? 'ri-eye-off-line' : 'ri-eye-line'} />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox 
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    disabled={loading}
-                  />
-                }
-                label={
-                  <>
-                    <span>I agree to </span>
-                    <Link className='text-primary' href='/' onClick={e => e.preventDefault()}>
-                      privacy policy & terms
-                    </Link>
-                  </>
-                }
-              />
-              <Button 
-                fullWidth 
-                variant='contained' 
-                type='submit'
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} /> : null}
-              >
-                {loading ? 'Signing Up...' : 'Sign Up'}
-              </Button>
-              <div className='flex justify-center items-center flex-wrap gap-2'>
-                <Typography>Already have an account?</Typography>
-                <Typography component={Link} href='/login' color='primary'>
-                  Sign in instead
-                </Typography>
-              </div>
-              <Divider className='gap-3'>Or</Divider>
-              <div className='flex justify-center items-center gap-2'>
-                <IconButton size='small' className='text-facebook'>
-                  <i className='ri-facebook-fill' />
-                </IconButton>
-                <IconButton size='small' className='text-twitter'>
-                  <i className='ri-twitter-fill' />
-                </IconButton>
-                <IconButton size='small' className='text-github'>
-                  <i className='ri-github-fill' />
-                </IconButton>
-                <IconButton size='small' className='text-googlePlus'>
-                  <i className='ri-google-fill' />
-                </IconButton>
-              </div>
-            </form>
-          </div>
-        </CardContent>
-      </Card>
-      <Illustrations maskImg={{ src: authBackground }} />
-    </div>
+          </ButtonContainer>
+        </QuestionContainer>
+      </Main>
+      <Footer>
+        <FooterLink>
+          Already have an account? <Link href='/login'>Sign in</Link>
+        </FooterLink>
+      </Footer>
+    </Container>
   )
 }
 

@@ -1,12 +1,13 @@
 'use client'
 
 // React Imports
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // MUI Imports
 import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
+import CardHeader from '@mui/material/CardHeader'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
@@ -14,164 +15,283 @@ import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import Chip from '@mui/material/Chip'
+import Alert from '@mui/material/Alert'
+import CircularProgress from '@mui/material/CircularProgress'
+import Divider from '@mui/material/Divider'
+import Box from '@mui/material/Box'
 
-// Vars
-const initialData = {
-  firstName: 'John',
-  lastName: 'Doe',
-  email: 'john.doe@example.com',
-  organization: 'ThemeSelection',
-  phoneNumber: '+1 (917) 543-9876',
-  address: '123 Main St, New York, NY 10001',
-  state: 'New York',
-  zipCode: '634880',
-  country: 'usa',
-  language: 'arabic',
-  timezone: 'gmt-12',
-  currency: 'usd'
-}
+// API Imports
+import { authAPI } from '@/services/api'
 
-const languageData = ['English', 'Arabic', 'French', 'German', 'Portuguese']
+// Country and City choices matching backend
+const COUNTRY_CHOICES = [
+  { value: 'UAE', label: 'United Arab Emirates' },
+  { value: 'UZB', label: 'Uzbekistan' }
+]
+
+const UAE_CITY_CHOICES = [
+  { value: 'AUH', label: 'Abu Dhabi' },
+  { value: 'DXB', label: 'Dubai' },
+  { value: 'SHJ', label: 'Sharjah' },
+  { value: 'AJM', label: 'Ajman' },
+  { value: 'UAQ', label: 'Umm Al Quwain' },
+  { value: 'FUJ', label: 'Fujairah' },
+  { value: 'RAK', label: 'Ras Al Khaimah' }
+]
+
+const UZB_CITY_CHOICES = [
+  { value: 'TAS', label: 'Tashkent' },
+  { value: 'SAM', label: 'Samarkand' },
+  { value: 'NAM', label: 'Namangan' },
+  { value: 'AND', label: 'Andijan' }
+]
 
 const AccountDetails = () => {
   // States
-  const [formData, setFormData] = useState(initialData)
-  const [fileInput, setFileInput] = useState('')
-  const [imgSrc, setImgSrc] = useState('/images/avatars/1.png')
-  const [language, setLanguage] = useState(['English'])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
-  const handleDelete = value => {
-    setLanguage(current => current.filter(item => item !== value))
+  // User fields
+  const [userData, setUserData] = useState({
+    email: '',
+    first_name: '',
+    last_name: '',
+    phone_number: '',
+    country: 'UAE'
+  })
+
+  // Company fields
+  const [companyData, setCompanyData] = useState({
+    company_name: '',
+    business_type: '',
+    company_address: '',
+    company_phone: '',
+    city: 'DXB',
+    tax_number: ''
+  })
+
+  // Form validation errors
+  const [errors, setErrors] = useState({})
+
+  // Get city choices based on country
+  const getCityChoices = () => {
+    return userData.country === 'UZB' ? UZB_CITY_CHOICES : UAE_CITY_CHOICES
   }
 
-  const handleChange = event => {
-    setLanguage(event.target.value)
-  }
+  // Load user profile on mount
+  useEffect(() => {
+    loadProfile()
+  }, [])
 
-  const handleFormChange = (field, value) => {
-    setFormData({ ...formData, [field]: value })
-  }
+  // Update city when country changes
+  useEffect(() => {
+    const cityChoices = userData.country === 'UZB' ? UZB_CITY_CHOICES : UAE_CITY_CHOICES
+    const currentCityValid = cityChoices.some(c => c.value === companyData.city)
 
-  const handleFileInputChange = file => {
-    const reader = new FileReader()
-    const { files } = file.target
+    if (!currentCityValid) {
+      setCompanyData(prev => ({ ...prev, city: cityChoices[0].value }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData.country])
 
-    if (files && files.length !== 0) {
-      reader.onload = () => setImgSrc(reader.result)
-      reader.readAsDataURL(files[0])
+  const loadProfile = async () => {
+    try {
+      setLoading(true)
+      const profile = await authAPI.getProfile()
 
-      if (reader.result !== null) {
-        setFileInput(reader.result)
-      }
+      console.log('Loaded profile:', profile)
+
+      // Set user data
+      setUserData({
+        email: profile.email || '',
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone_number: profile.phone_number || profile.profile?.phone_number || '',
+        country: profile.country || profile.profile?.country || 'UAE'
+      })
+
+      // Set company data from profile
+      setCompanyData({
+        company_name: profile.company_name || profile.profile?.company_name || '',
+        business_type: profile.business_type || profile.profile?.business_type || '',
+        company_address: profile.company_address || profile.profile?.company_address || '',
+        company_phone: profile.company_phone || profile.profile?.company_phone || '',
+        city: profile.city || profile.profile?.city || 'DXB',
+        tax_number: profile.tax_number || profile.profile?.tax_number || ''
+      })
+    } catch (err) {
+      console.error('Failed to load profile:', err)
+      setError('Failed to load profile. Please refresh the page.')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleFileInputReset = () => {
-    setFileInput('')
-    setImgSrc('/images/avatars/1.png')
+  const handleUserChange = (field, value) => {
+    setUserData(prev => ({ ...prev, [field]: value }))
+    setErrors(prev => ({ ...prev, [field]: '' }))
+    setError('')
+    setSuccess('')
+  }
+
+  const handleCompanyChange = (field, value) => {
+    setCompanyData(prev => ({ ...prev, [field]: value }))
+    setErrors(prev => ({ ...prev, [field]: '' }))
+    setError('')
+    setSuccess('')
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    // User validations
+    if (!userData.first_name.trim()) newErrors.first_name = 'First name is required'
+    if (!userData.last_name.trim()) newErrors.last_name = 'Last name is required'
+    if (!userData.phone_number.trim()) newErrors.phone_number = 'Phone number is required'
+
+    // Company validations (required fields)
+    if (!companyData.company_name.trim()) newErrors.company_name = 'Company name is required'
+    if (!companyData.business_type.trim()) newErrors.business_type = 'Business type is required'
+    if (!companyData.company_address.trim()) newErrors.company_address = 'Company address is required'
+    if (!companyData.company_phone.trim()) newErrors.company_phone = 'Company phone is required'
+
+    setErrors(newErrors)
+
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async e => {
+    e.preventDefault()
+
+    if (!validateForm()) {
+      setError('Please fill in all required fields')
+
+      return
+    }
+
+    try {
+      setSaving(true)
+      setError('')
+      setSuccess('')
+
+      // Combine user and company data for update
+      const updateData = {
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        phone_number: userData.phone_number,
+        country: userData.country,
+
+        // Company fields - may be nested in profile based on backend
+        company_name: companyData.company_name,
+        business_type: companyData.business_type,
+        company_address: companyData.company_address,
+        company_phone: companyData.company_phone,
+        city: companyData.city,
+        tax_number: companyData.tax_number
+      }
+
+      await authAPI.updateProfile(updateData)
+      setSuccess('Profile updated successfully!')
+    } catch (err) {
+      console.error('Failed to update profile:', err)
+
+      if (err.response?.data) {
+        const fieldErrors = {}
+
+        Object.entries(err.response.data).forEach(([key, value]) => {
+          fieldErrors[key] = Array.isArray(value) ? value[0] : value
+        })
+        setErrors(fieldErrors)
+        setError('Please fix the errors below')
+      } else {
+        setError(err.message || 'Failed to update profile')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleReset = () => {
+    loadProfile()
+    setErrors({})
+    setError('')
+    setSuccess('')
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className='flex justify-center items-center min-h-[400px]'>
+          <CircularProgress />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
-    <Card>
-      <CardContent className='mbe-5'>
-        <div className='flex max-sm:flex-col items-center gap-6'>
-          <img height={100} width={100} className='rounded' src={imgSrc} alt='Profile' />
-          <div className='flex flex-grow flex-col gap-4'>
-            <div className='flex flex-col sm:flex-row gap-4'>
-              <Button component='label' size='small' variant='contained' htmlFor='account-settings-upload-image'>
-                Upload New Photo
-                <input
-                  hidden
-                  type='file'
-                  value={fileInput}
-                  accept='image/png, image/jpeg'
-                  onChange={handleFileInputChange}
-                  id='account-settings-upload-image'
-                />
-              </Button>
-              <Button size='small' variant='outlined' color='error' onClick={handleFileInputReset}>
-                Reset
-              </Button>
-            </div>
-            <Typography>Allowed JPG, GIF or PNG. Max size of 800K</Typography>
-          </div>
-        </div>
-      </CardContent>
-      <CardContent>
-        <form onSubmit={e => e.preventDefault()}>
+    <form onSubmit={handleSubmit}>
+      {/* User Information Card */}
+      <Card className='mbe-6'>
+        <CardHeader title='User Information' subheader='Update your personal details' />
+        <CardContent>
+          {error && (
+            <Alert severity='error' className='mbe-4'>
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert severity='success' className='mbe-4'>
+              {success}
+            </Alert>
+          )}
+
           <Grid container spacing={5}>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                label='Email'
+                value={userData.email}
+                disabled
+                helperText='Email cannot be changed'
+                InputProps={{
+                  readOnly: true
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
                 label='First Name'
-                value={formData.firstName}
-                placeholder='John'
-                onChange={e => handleFormChange('firstName', e.target.value)}
+                value={userData.first_name}
+                onChange={e => handleUserChange('first_name', e.target.value)}
+                error={!!errors.first_name}
+                helperText={errors.first_name}
+                required
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label='Last Name'
-                value={formData.lastName}
-                placeholder='Doe'
-                onChange={e => handleFormChange('lastName', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label='Email'
-                value={formData.email}
-                placeholder='john.doe@gmail.com'
-                onChange={e => handleFormChange('email', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label='Organization'
-                value={formData.organization}
-                placeholder='ThemeSelection'
-                onChange={e => handleFormChange('organization', e.target.value)}
+                value={userData.last_name}
+                onChange={e => handleUserChange('last_name', e.target.value)}
+                error={!!errors.last_name}
+                helperText={errors.last_name}
+                required
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label='Phone Number'
-                value={formData.phoneNumber}
-                placeholder='+1 (234) 567-8901'
-                onChange={e => handleFormChange('phoneNumber', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label='Address'
-                value={formData.address}
-                placeholder='Address'
-                onChange={e => handleFormChange('address', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label='State'
-                value={formData.state}
-                placeholder='New York'
-                onChange={e => handleFormChange('state', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type='number'
-                label='Zip Code'
-                value={formData.zipCode}
-                placeholder='123456'
-                onChange={e => handleFormChange('zipCode', e.target.value)}
+                value={userData.phone_number}
+                onChange={e => handleUserChange('phone_number', e.target.value)}
+                placeholder='+971 50 123 4567'
+                error={!!errors.phone_number}
+                helperText={errors.phone_number}
+                required
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -179,105 +299,121 @@ const AccountDetails = () => {
                 <InputLabel>Country</InputLabel>
                 <Select
                   label='Country'
-                  value={formData.country}
-                  onChange={e => handleFormChange('country', e.target.value)}
+                  value={userData.country}
+                  onChange={e => handleUserChange('country', e.target.value)}
                 >
-                  <MenuItem value='usa'>USA</MenuItem>
-                  <MenuItem value='uk'>UK</MenuItem>
-                  <MenuItem value='australia'>Australia</MenuItem>
-                  <MenuItem value='germany'>Germany</MenuItem>
+                  {COUNTRY_CHOICES.map(country => (
+                    <MenuItem key={country.value} value={country.value}>
+                      {country.label}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Company Information Card */}
+      <Card>
+        <CardHeader title='Company Information' subheader='Update your company details' />
+        <CardContent>
+          <Grid container spacing={5}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label='Company Name'
+                value={companyData.company_name}
+                onChange={e => handleCompanyChange('company_name', e.target.value)}
+                error={!!errors.company_name}
+                helperText={errors.company_name || 'Required'}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label='Business Type'
+                value={companyData.business_type}
+                onChange={e => handleCompanyChange('business_type', e.target.value)}
+                placeholder='e.g., Equipment Rental, Construction'
+                error={!!errors.business_type}
+                helperText={errors.business_type || 'Required'}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label='Company Address'
+                value={companyData.company_address}
+                onChange={e => handleCompanyChange('company_address', e.target.value)}
+                placeholder='Full company address'
+                error={!!errors.company_address}
+                helperText={errors.company_address || 'Required'}
+                required
+                multiline
+                rows={2}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label='Company Phone'
+                value={companyData.company_phone}
+                onChange={e => handleCompanyChange('company_phone', e.target.value)}
+                placeholder='+971 4 123 4567'
+                error={!!errors.company_phone}
+                helperText={errors.company_phone || 'Required'}
+                required
+              />
+            </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
-                <InputLabel>Language</InputLabel>
+                <InputLabel>City</InputLabel>
                 <Select
-                  multiple
-                  label='Language'
-                  value={language}
-                  onChange={handleChange}
-                  renderValue={selected => (
-                    <div className='flex flex-wrap gap-2'>
-                      {selected.map(value => (
-                        <Chip
-                          key={value}
-                          clickable
-                          deleteIcon={
-                            <i className='ri-close-circle-fill' onMouseDown={event => event.stopPropagation()} />
-                          }
-                          size='small'
-                          label={value}
-                          onDelete={() => handleDelete(value)}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  label='City'
+                  value={companyData.city}
+                  onChange={e => handleCompanyChange('city', e.target.value)}
                 >
-                  {languageData.map(name => (
-                    <MenuItem key={name} value={name}>
-                      {name}
+                  {getCityChoices().map(city => (
+                    <MenuItem key={city.value} value={city.value}>
+                      {city.label}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>TimeZone</InputLabel>
-                <Select
-                  label='TimeZone'
-                  value={formData.timezone}
-                  onChange={e => handleFormChange('timezone', e.target.value)}
-                  MenuProps={{ PaperProps: { style: { maxHeight: 250 } } }}
-                >
-                  <MenuItem value='gmt-12'>(GMT-12:00) International Date Line West</MenuItem>
-                  <MenuItem value='gmt-11'>(GMT-11:00) Midway Island, Samoa</MenuItem>
-                  <MenuItem value='gmt-10'>(GMT-10:00) Hawaii</MenuItem>
-                  <MenuItem value='gmt-09'>(GMT-09:00) Alaska</MenuItem>
-                  <MenuItem value='gmt-08'>(GMT-08:00) Pacific Time (US & Canada)</MenuItem>
-                  <MenuItem value='gmt-08-baja'>(GMT-08:00) Tijuana, Baja California</MenuItem>
-                  <MenuItem value='gmt-07'>(GMT-07:00) Chihuahua, La Paz, Mazatlan</MenuItem>
-                  <MenuItem value='gmt-07-mt'>(GMT-07:00) Mountain Time (US & Canada)</MenuItem>
-                  <MenuItem value='gmt-06'>(GMT-06:00) Central America</MenuItem>
-                  <MenuItem value='gmt-06-ct'>(GMT-06:00) Central Time (US & Canada)</MenuItem>
-                  <MenuItem value='gmt-06-mc'>(GMT-06:00) Guadalajara, Mexico City, Monterrey</MenuItem>
-                  <MenuItem value='gmt-06-sk'>(GMT-06:00) Saskatchewan</MenuItem>
-                  <MenuItem value='gmt-05'>(GMT-05:00) Bogota, Lima, Quito, Rio Branco</MenuItem>
-                  <MenuItem value='gmt-05-et'>(GMT-05:00) Eastern Time (US & Canada)</MenuItem>
-                  <MenuItem value='gmt-05-ind'>(GMT-05:00) Indiana (East)</MenuItem>
-                  <MenuItem value='gmt-04'>(GMT-04:00) Atlantic Time (Canada)</MenuItem>
-                  <MenuItem value='gmt-04-clp'>(GMT-04:00) Caracas, La Paz</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Currency</InputLabel>
-                <Select
-                  label='Currency'
-                  value={formData.currency}
-                  onChange={e => handleFormChange('currency', e.target.value)}
-                >
-                  <MenuItem value='usd'>USD</MenuItem>
-                  <MenuItem value='euro'>EUR</MenuItem>
-                  <MenuItem value='pound'>Pound</MenuItem>
-                  <MenuItem value='bitcoin'>Bitcoin</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} className='flex gap-4 flex-wrap'>
-              <Button variant='contained' type='submit'>
-                Save Changes
-              </Button>
-              <Button variant='outlined' type='reset' color='secondary' onClick={() => setFormData(initialData)}>
-                Reset
-              </Button>
+              <TextField
+                fullWidth
+                label='Tax Number (TRN)'
+                value={companyData.tax_number}
+                onChange={e => handleCompanyChange('tax_number', e.target.value)}
+                placeholder='Tax Registration Number (optional)'
+                helperText='Optional'
+              />
             </Grid>
           </Grid>
-        </form>
-      </CardContent>
-    </Card>
+
+          <Divider className='mbs-6 mbe-6' />
+
+          <Box className='flex gap-4'>
+            <Button
+              variant='contained'
+              type='submit'
+              disabled={saving}
+              startIcon={saving ? <CircularProgress size={20} color='inherit' /> : null}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+            <Button variant='outlined' color='secondary' type='button' onClick={handleReset} disabled={saving}>
+              Reset
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    </form>
   )
 }
 

@@ -267,6 +267,17 @@ const AddEquipment = () => {
       // Create FormData for multipart/form-data
       const formDataToSend = new FormData()
 
+      // Fields that backend requires but we treat as optional on frontend
+      // Send empty string if not provided (backend workaround)
+      const optionalFieldsWithDefaults = {
+        manufacturer: '',
+        model_number: '',
+        year: '',
+        weight: '',
+        dimensions: '',
+        fuel_type: ''
+      }
+
       // Add all form fields (only non-empty values)
       Object.keys(formData).forEach(key => {
         const value = formData[key]
@@ -278,6 +289,9 @@ const AddEquipment = () => {
           } else {
             formDataToSend.append(key, value)
           }
+        } else if (key in optionalFieldsWithDefaults) {
+          // Send empty string for optional fields that backend requires
+          formDataToSend.append(key, optionalFieldsWithDefaults[key])
         }
       })
 

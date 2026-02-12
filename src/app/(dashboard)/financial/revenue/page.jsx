@@ -351,7 +351,7 @@ const RevenueDashboard = () => {
       toolbar: { show: false },
       zoom: { enabled: false }
     },
-    colors: [getColor('palette.primary.main', '#165DFC')],
+    colors: [getColor('palette.primary.main', '#696cff')],
     dataLabels: { enabled: false },
     stroke: {
       curve: 'smooth',
@@ -473,7 +473,7 @@ const RevenueDashboard = () => {
       type: 'bar',
       toolbar: { show: false }
     },
-    colors: [getColor('palette.primary.main', '#165DFC')],
+    colors: [getColor('palette.primary.main', '#696cff')],
     plotOptions: {
       bar: {
         horizontal: true,
@@ -536,7 +536,7 @@ const RevenueDashboard = () => {
   ]
 
   const COLORS = [
-    getColor('palette.primary.main', '#165DFC'),
+    getColor('palette.primary.main', '#696cff'),
     getColor('palette.success.main', '#10b981'),
     getColor('palette.warning.main', '#f59e0b'),
     getColor('palette.error.main', '#ef4444'),
@@ -588,7 +588,7 @@ const RevenueDashboard = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              background: `linear-gradient(135deg, ${getColor('palette.primary.main', '#165DFC')} 0%, ${getColor('palette.primary.dark', '#0d3f9f')} 100%)`,
+              background: `linear-gradient(135deg, ${getColor('palette.primary.main', '#696cff')} 0%, ${getColor('palette.primary.dark', '#5A5DE8')} 100%)`,
               color: 'white'
             }}
           >

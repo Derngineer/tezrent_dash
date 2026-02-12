@@ -162,9 +162,27 @@ export const authAPI = {
     return response.data
   },
 
-  // LOGIN ENDPOINT
+  // LOGIN ENDPOINT (password-based)
   login: async (email, password) => {
     const response = await axios.post(`${API_BASE_URL}accounts/token/`, { email, password })
+    const { access, refresh, user } = response.data
+
+    setTokens(access, refresh)
+    setUserProfile(user)
+
+    return response.data
+  },
+
+  // OTP LOGIN - Request OTP
+  requestOTP: async email => {
+    const response = await axios.post(`${API_BASE_URL}accounts/otp/request/`, { email })
+
+    return response.data
+  },
+
+  // OTP LOGIN - Verify OTP and get tokens
+  verifyOTP: async (email, otp) => {
+    const response = await axios.post(`${API_BASE_URL}accounts/otp/verify/`, { email, otp })
     const { access, refresh, user } = response.data
 
     setTokens(access, refresh)
