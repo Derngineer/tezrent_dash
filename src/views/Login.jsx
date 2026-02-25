@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
+
 import styled from '@emotion/styled'
 import { keyframes } from '@emotion/react'
 
@@ -16,8 +18,76 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `
 
-const Container = styled.div`
+const PageWrapper = styled.div`
   min-height: 100vh;
+  display: flex;
+
+  @media (max-width: 968px) {
+    flex-direction: column;
+  }
+`
+
+const ImageSection = styled.div`
+  flex: 1;
+  position: relative;
+  background: linear-gradient(135deg, ${BRAND_BLUE}22 0%, ${BRAND_BLUE}44 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
+  overflow: hidden;
+
+  @media (max-width: 968px) {
+    min-height: 300px;
+    padding: 40px;
+  }
+`
+
+const ImageOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.5) 100%);
+`
+
+const StockImage = styled(Image)`
+  object-fit: cover;
+  z-index: 0;
+`
+
+const WelcomeContent = styled.div`
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: #ffffff;
+`
+
+const WelcomeTitle = styled.h1`
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+
+  @media (max-width: 968px) {
+    font-size: 36px;
+  }
+`
+
+const WelcomeSubtitle = styled.p`
+  font-size: 20px;
+  opacity: 0.95;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
+
+  @media (max-width: 968px) {
+    font-size: 16px;
+  }
+`
+
+const FormSection = styled.div`
+  flex: 1;
   background: #ffffff;
   display: flex;
   flex-direction: column;
@@ -37,7 +107,7 @@ const Logo = styled.div`
 `
 
 const ProgressContainer = styled.div`
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -59,7 +129,7 @@ const Main = styled.main`
   flex-direction: column;
   justify-content: center;
   padding: 40px;
-  max-width: 600px;
+  max-width: 500px;
   margin: 0 auto;
   width: 100%;
 `
@@ -366,13 +436,10 @@ const Login = () => {
     setError('')
 
     try {
-      const response = await api.post('/accounts/login/', { email, password })
-
-      localStorage.setItem('accessToken', response.data.access)
-      localStorage.setItem('refreshToken', response.data.refresh)
+      await authAPI.login(email, password)
       router.push('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid credentials')
+      setError(err.response?.data?.detail || err.response?.data?.error || 'Invalid credentials')
     } finally {
       setIsLoading(false)
     }
@@ -470,35 +537,45 @@ const Login = () => {
   }
 
   return (
-    <Container>
-      <ProgressContainer>
-        <ProgressBar progress={progress} />
-      </ProgressContainer>
-      <Header>
-        <Logo>tezrent</Logo>
-      </Header>
-      <Main>
-        <QuestionContainer key={currentStep}>
-          <Question>{STEPS[currentStep].question}</Question>
-          {renderInput()}
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          {success && <SuccessMessage>{success}</SuccessMessage>}
-          {STEPS[currentStep].type !== 'otp' && <HelperText>Press Enter to continue</HelperText>}
-          <ButtonContainer>
-            {currentStep > 0 && <BackButton onClick={handleBack}>Back</BackButton>}
-            <ContinueButton onClick={handleContinue} disabled={isLoading}>
-              {isLoading ? 'Please wait...' : 'Continue'}
-            </ContinueButton>
-          </ButtonContainer>
-        </QuestionContainer>
-      </Main>
-      <Footer>
-        <FooterLink>
-          {"Don't have an account? "}
-          <Link href='/register'>Sign up</Link>
-        </FooterLink>
-      </Footer>
-    </Container>
+    <PageWrapper>
+      <ImageSection>
+        <StockImage src='/images/illustrations/objects/stock.jpg' alt='Welcome back' fill priority />
+        <ImageOverlay />
+        <WelcomeContent>
+          <WelcomeTitle>Welcome Back</WelcomeTitle>
+          <WelcomeSubtitle>Sign in to continue to your dashboard</WelcomeSubtitle>
+        </WelcomeContent>
+      </ImageSection>
+      <FormSection>
+        <ProgressContainer>
+          <ProgressBar progress={progress} />
+        </ProgressContainer>
+        <Header>
+          <Logo>tezrent</Logo>
+        </Header>
+        <Main>
+          <QuestionContainer key={currentStep}>
+            <Question>{STEPS[currentStep].question}</Question>
+            {renderInput()}
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {success && <SuccessMessage>{success}</SuccessMessage>}
+            {STEPS[currentStep].type !== 'otp' && <HelperText>Press Enter to continue</HelperText>}
+            <ButtonContainer>
+              {currentStep > 0 && <BackButton onClick={handleBack}>Back</BackButton>}
+              <ContinueButton onClick={handleContinue} disabled={isLoading}>
+                {isLoading ? 'Please wait...' : 'Continue'}
+              </ContinueButton>
+            </ButtonContainer>
+          </QuestionContainer>
+        </Main>
+        <Footer>
+          <FooterLink>
+            {"Don't have an account? "}
+            <Link href='/register'>Sign up</Link>
+          </FooterLink>
+        </Footer>
+      </FormSection>
+    </PageWrapper>
   )
 }
 

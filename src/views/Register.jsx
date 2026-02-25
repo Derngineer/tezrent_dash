@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+
 import styled from '@emotion/styled'
 import { keyframes } from '@emotion/react'
 
@@ -43,19 +45,72 @@ const BUSINESS_TYPES = [
 ]
 
 const QUESTIONS = [
-  { key: 'company_name', question: "What's your company name?", placeholder: 'Acme Equipment Rentals', type: 'text', required: true },
-  { key: 'business_type', question: 'What type of business are you in?', type: 'select', options: 'BUSINESS_TYPES', required: true },
-  { key: 'country', question: 'Which country is your business located in?', type: 'select', options: 'COUNTRIES', required: true },
+  {
+    key: 'company_name',
+    question: "What's your company name?",
+    placeholder: 'Acme Equipment Rentals',
+    type: 'text',
+    required: true
+  },
+  {
+    key: 'business_type',
+    question: 'What type of business are you in?',
+    type: 'select',
+    options: 'BUSINESS_TYPES',
+    required: true
+  },
+  {
+    key: 'country',
+    question: 'Which country is your business located in?',
+    type: 'select',
+    options: 'COUNTRIES',
+    required: true
+  },
   { key: 'city', question: 'Which city?', type: 'select', options: 'CITIES', dynamic: true, required: true },
-  { key: 'company_address', question: "What's your business address?", placeholder: '123 Industrial Area', type: 'text', required: true },
-  { key: 'company_phone', question: "What's your company phone number?", placeholder: '+971 4 123 4567', type: 'tel', required: true },
-  { key: 'tax_number', question: 'Tax registration number?', placeholder: 'TRN123456789 (optional)', type: 'text', required: false },
+  {
+    key: 'company_address',
+    question: "What's your business address?",
+    placeholder: '123 Industrial Area',
+    type: 'text',
+    required: true
+  },
+  {
+    key: 'phone_number',
+    question: "What's your phone number?",
+    placeholder: '+971 50 123 4567',
+    type: 'tel',
+    required: true
+  },
+  {
+    key: 'tax_number',
+    question: 'Tax registration number?',
+    placeholder: 'TRN123456789 (optional)',
+    type: 'text',
+    required: false
+  },
   { key: 'first_name', question: "What's your first name?", placeholder: 'John', type: 'text', required: true },
   { key: 'last_name', question: 'And your last name?', placeholder: 'Smith', type: 'text', required: true },
-  { key: 'phone_number', question: "What's your phone number?", placeholder: '+971 50 123 4567', type: 'tel', required: true },
-  { key: 'email', question: "What's your email address?", placeholder: 'john@company.com', type: 'email', required: true },
-  { key: 'password', question: 'Create a password', placeholder: '8+ characters', type: 'password', required: true },
-  { key: 'confirmPassword', question: 'Confirm your password', placeholder: 'Re-enter password', type: 'password', required: true }
+  {
+    key: 'email',
+    question: "What's your email address?",
+    placeholder: 'john@company.com',
+    type: 'email',
+    required: true
+  },
+  {
+    key: 'password',
+    question: 'Create a password',
+    placeholder: '8+ characters',
+    type: 'password',
+    required: true
+  },
+  {
+    key: 'confirmPassword',
+    question: 'Confirm your password',
+    placeholder: 'Re-enter password',
+    type: 'password',
+    required: true
+  }
 ]
 
 const fadeIn = keyframes`
@@ -63,8 +118,76 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `
 
-const Container = styled.div`
+const PageWrapper = styled.div`
   min-height: 100vh;
+  display: flex;
+
+  @media (max-width: 968px) {
+    flex-direction: column;
+  }
+`
+
+const ImageSection = styled.div`
+  flex: 1;
+  position: relative;
+  background: linear-gradient(135deg, ${BRAND_BLUE}22 0%, ${BRAND_BLUE}44 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
+  overflow: hidden;
+
+  @media (max-width: 968px) {
+    min-height: 300px;
+    padding: 40px;
+  }
+`
+
+const ImageOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.5) 100%);
+`
+
+const StockImage = styled(Image)`
+  object-fit: cover;
+  z-index: 0;
+`
+
+const WelcomeContent = styled.div`
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: #ffffff;
+`
+
+const WelcomeTitle = styled.h1`
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+
+  @media (max-width: 968px) {
+    font-size: 36px;
+  }
+`
+
+const WelcomeSubtitle = styled.p`
+  font-size: 20px;
+  opacity: 0.95;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
+
+  @media (max-width: 968px) {
+    font-size: 16px;
+  }
+`
+
+const FormSection = styled.div`
+  flex: 1;
   background: #ffffff;
   display: flex;
   flex-direction: column;
@@ -84,7 +207,7 @@ const Logo = styled.div`
 `
 
 const ProgressContainer = styled.div`
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -106,7 +229,7 @@ const Main = styled.main`
   flex-direction: column;
   justify-content: center;
   padding: 40px;
-  max-width: 600px;
+  max-width: 500px;
   margin: 0 auto;
   width: 100%;
 `
@@ -153,10 +276,10 @@ const SelectContainer = styled.div`
 const SelectOption = styled.button`
   padding: 14px 24px;
   font-size: 16px;
-  border: 2px solid ${props => props.selected ? BRAND_BLUE : '#e0e0e0'};
+  border: 2px solid ${props => (props.selected ? BRAND_BLUE : '#e0e0e0')};
   border-radius: 8px;
-  background: ${props => props.selected ? BRAND_BLUE : 'transparent'};
-  color: ${props => props.selected ? '#ffffff' : '#1a1a1a'};
+  background: ${props => (props.selected ? BRAND_BLUE : 'transparent')};
+  color: ${props => (props.selected ? '#ffffff' : '#1a1a1a')};
   cursor: pointer;
   transition: all 0.2s;
 
@@ -283,7 +406,7 @@ const Register = () => {
     if (inputRef.current && currentQuestion.type !== 'select') {
       inputRef.current.focus()
     }
-  }, [currentStep])
+  }, [currentStep, currentQuestion.type])
 
   const validateField = () => {
     const value = formData[currentQuestion.key]
@@ -427,38 +550,48 @@ const Register = () => {
   }
 
   return (
-    <Container>
-      <ProgressContainer>
-        <ProgressBar progress={progress} />
-      </ProgressContainer>
-      <Header>
-        <Logo>tezrent</Logo>
-      </Header>
-      <Main>
-        <QuestionContainer key={currentStep}>
-          <Question>{currentQuestion.question}</Question>
-          {renderInput()}
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          {currentQuestion.type !== 'select' && <HelperText>Press Enter to continue</HelperText>}
-          <ButtonContainer>
-            {currentStep > 0 && <BackButton onClick={handleBack}>Back</BackButton>}
-            {!currentQuestion.required && currentQuestion.type !== 'select' && (
-              <SkipButton onClick={handleSkip}>Skip</SkipButton>
-            )}
-            {currentQuestion.type !== 'select' && (
-              <ContinueButton onClick={handleContinue} disabled={isLoading}>
-                {isLoading ? 'Please wait...' : currentStep === QUESTIONS.length - 1 ? 'Create Account' : 'Continue'}
-              </ContinueButton>
-            )}
-          </ButtonContainer>
-        </QuestionContainer>
-      </Main>
-      <Footer>
-        <FooterLink>
-          Already have an account? <Link href='/login'>Sign in</Link>
-        </FooterLink>
-      </Footer>
-    </Container>
+    <PageWrapper>
+      <ImageSection>
+        <StockImage src='/images/illustrations/objects/stock.jpg' alt='Join us' fill priority />
+        <ImageOverlay />
+        <WelcomeContent>
+          <WelcomeTitle>Join Us</WelcomeTitle>
+          <WelcomeSubtitle>Create your account and start managing your rentals</WelcomeSubtitle>
+        </WelcomeContent>
+      </ImageSection>
+      <FormSection>
+        <ProgressContainer>
+          <ProgressBar progress={progress} />
+        </ProgressContainer>
+        <Header>
+          <Logo>tezrent</Logo>
+        </Header>
+        <Main>
+          <QuestionContainer key={currentStep}>
+            <Question>{currentQuestion.question}</Question>
+            {renderInput()}
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {currentQuestion.type !== 'select' && <HelperText>Press Enter to continue</HelperText>}
+            <ButtonContainer>
+              {currentStep > 0 && <BackButton onClick={handleBack}>Back</BackButton>}
+              {!currentQuestion.required && currentQuestion.type !== 'select' && (
+                <SkipButton onClick={handleSkip}>Skip</SkipButton>
+              )}
+              {currentQuestion.type !== 'select' && (
+                <ContinueButton onClick={handleContinue} disabled={isLoading}>
+                  {isLoading ? 'Please wait...' : currentStep === QUESTIONS.length - 1 ? 'Create Account' : 'Continue'}
+                </ContinueButton>
+              )}
+            </ButtonContainer>
+          </QuestionContainer>
+        </Main>
+        <Footer>
+          <FooterLink>
+            Already have an account? <Link href='/login'>Sign in</Link>
+          </FooterLink>
+        </Footer>
+      </FormSection>
+    </PageWrapper>
   )
 }
 
