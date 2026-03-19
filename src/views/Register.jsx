@@ -478,7 +478,7 @@ const Register = () => {
     try {
       const { confirmPassword, ...submitData } = formData
 
-      await api.post('/accounts/register/', submitData)
+      await api.post('/accounts/register/company/', submitData)
       router.push('/login?registered=true')
     } catch (err) {
       const errorData = err.response?.data
