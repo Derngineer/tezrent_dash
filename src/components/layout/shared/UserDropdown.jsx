@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 
 // Next Imports
 import { useRouter } from 'next/navigation'
@@ -19,6 +19,10 @@ import Typography from '@mui/material/Typography'
 import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
+
+// API Import
+import { authAPI, getUserProfile } from '@/services/api'
 
 // Styled component for badge content
 const BadgeContentSpan = styled('span')({
@@ -33,12 +37,27 @@ const BadgeContentSpan = styled('span')({
 const UserDropdown = () => {
   // States
   const [open, setOpen] = useState(false)
+  const [user, setUser] = useState(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // Refs
   const anchorRef = useRef(null)
 
   // Hooks
   const router = useRouter()
+
+  // Load user profile on mount
+  useEffect(() => {
+    const loadUser = () => {
+      const profile = getUserProfile()
+
+      if (profile) {
+        setUser(profile)
+      }
+    }
+
+    loadUser()
+  }, [])
 
   const handleDropdownOpen = () => {
     !open ? setOpen(true) : setOpen(false)
@@ -56,6 +75,53 @@ const UserDropdown = () => {
     setOpen(false)
   }
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+
+    try {
+      await authAPI.logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return 'User'
+
+    if (user.first_name && user.last_name) {
+      return `${user.first_name} ${user.last_name}`
+    }
+
+    if (user.first_name) return user.first_name
+    if (user.company_name) return user.company_name
+    if (user.email) return user.email.split('@')[0]
+
+    return 'User'
+  }
+
+  // Get user role/company
+  const getUserRole = () => {
+    if (!user) return ''
+
+    if (user.company_name) return user.company_name
+    if (user.role) return user.role
+
+    return 'Seller'
+  }
+
+  // Get initials for avatar fallback
+  const getInitials = () => {
+    const name = getUserDisplayName()
+    const parts = name.split(' ')
+
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    }
+
+    return name.substring(0, 2).toUpperCase()
+  }
+
   return (
     <>
       <Badge
@@ -67,11 +133,13 @@ const UserDropdown = () => {
       >
         <Avatar
           ref={anchorRef}
-          alt='John Doe'
-          src='/images/avatars/1.png'
+          alt={getUserDisplayName()}
           onClick={handleDropdownOpen}
           className='cursor-pointer bs-[38px] is-[38px]'
-        />
+          sx={{ bgcolor: 'primary.main' }}
+        >
+          {getInitials()}
+        </Avatar>
       </Badge>
       <Popper
         open={open}
@@ -79,7 +147,8 @@ const UserDropdown = () => {
         disablePortal
         placement='bottom-end'
         anchorEl={anchorRef.current}
-        className='min-is-[240px] !mbs-4 z-[1]'
+        className='min-is-[240px] !mbs-4'
+        sx={{ zIndex: 1400 }}
       >
         {({ TransitionProps, placement }) => (
           <Fade
@@ -92,30 +161,24 @@ const UserDropdown = () => {
               <ClickAwayListener onClickAway={e => handleDropdownClose(e)}>
                 <MenuList>
                   <div className='flex items-center plb-2 pli-4 gap-2' tabIndex={-1}>
-                    <Avatar alt='John Doe' src='/images/avatars/1.png' />
+                    <Avatar alt={getUserDisplayName()} sx={{ bgcolor: 'primary.main' }}>
+                      {getInitials()}
+                    </Avatar>
                     <div className='flex items-start flex-col'>
                       <Typography className='font-medium' color='text.primary'>
-                        John Doe
+                        {getUserDisplayName()}
                       </Typography>
-                      <Typography variant='caption'>Admin</Typography>
+                      <Typography variant='caption'>{getUserRole()}</Typography>
                     </div>
                   </div>
                   <Divider className='mlb-1' />
-                  <MenuItem className='gap-3' onClick={e => handleDropdownClose(e)}>
+                  <MenuItem className='gap-3' onClick={e => handleDropdownClose(e, '/account-settings')}>
                     <i className='ri-user-3-line' />
                     <Typography color='text.primary'>My Profile</Typography>
                   </MenuItem>
-                  <MenuItem className='gap-3' onClick={e => handleDropdownClose(e)}>
+                  <MenuItem className='gap-3' onClick={e => handleDropdownClose(e, '/account-settings')}>
                     <i className='ri-settings-4-line' />
                     <Typography color='text.primary'>Settings</Typography>
-                  </MenuItem>
-                  <MenuItem className='gap-3' onClick={e => handleDropdownClose(e)}>
-                    <i className='ri-money-dollar-circle-line' />
-                    <Typography color='text.primary'>Pricing</Typography>
-                  </MenuItem>
-                  <MenuItem className='gap-3' onClick={e => handleDropdownClose(e)}>
-                    <i className='ri-question-line' />
-                    <Typography color='text.primary'>FAQ</Typography>
                   </MenuItem>
                   <div className='flex items-center plb-2 pli-4'>
                     <Button
@@ -123,11 +186,18 @@ const UserDropdown = () => {
                       variant='contained'
                       color='error'
                       size='small'
-                      endIcon={<i className='ri-logout-box-r-line' />}
-                      onClick={e => handleDropdownClose(e, '/login')}
+                      endIcon={
+                        isLoggingOut ? (
+                          <CircularProgress size={16} color='inherit' />
+                        ) : (
+                          <i className='ri-logout-box-r-line' />
+                        )
+                      }
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
                       sx={{ '& .MuiButton-endIcon': { marginInlineStart: 1.5 } }}
                     >
-                      Logout
+                      {isLoggingOut ? 'Logging out...' : 'Logout'}
                     </Button>
                   </div>
                 </MenuList>

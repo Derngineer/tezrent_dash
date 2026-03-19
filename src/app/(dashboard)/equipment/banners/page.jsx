@@ -143,9 +143,21 @@ const BannersPage = () => {
     try {
       const response = await equipmentAPI.getCategories()
 
-      setCategories(response.data || response)
+      // Safely extract categories array
+      let categoriesData = []
+
+      if (Array.isArray(response)) {
+        categoriesData = response
+      } else if (response?.results && Array.isArray(response.results)) {
+        categoriesData = response.results
+      } else if (response?.data && Array.isArray(response.data)) {
+        categoriesData = response.data
+      }
+
+      setCategories(categoriesData)
     } catch (err) {
       console.error('Error fetching categories:', err)
+      setCategories([]) // Ensure it's always an array
     }
   }
 
@@ -437,7 +449,7 @@ const BannersPage = () => {
             <Box display='flex' justifyContent='center' alignItems='center' minHeight='200px'>
               <CircularProgress />
             </Box>
-          ) : banners.length === 0 ? (
+          ) : !Array.isArray(banners) || banners.length === 0 ? (
             <Box textAlign='center' py={4}>
               <Typography variant='h6' color='text.secondary' gutterBottom>
                 No banners yet
@@ -684,11 +696,12 @@ const BannersPage = () => {
               onChange={handleChange('target_category')}
             >
               <MenuItem value=''>None</MenuItem>
-              {categories.map(cat => (
-                <MenuItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </MenuItem>
-              ))}
+              {Array.isArray(categories) &&
+                categories.map(cat => (
+                  <MenuItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </MenuItem>
+                ))}
             </TextField>
 
             <Grid container spacing={2}>

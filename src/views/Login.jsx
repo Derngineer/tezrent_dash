@@ -413,13 +413,27 @@ const Login = () => {
     setError('')
 
     try {
-      const response = await authAPI.verifyOTP(email, otpCode)
-
-      localStorage.setItem('accessToken', response.data.access)
-      localStorage.setItem('refreshToken', response.data.refresh)
+      // authAPI.verifyOTP already stores tokens via setTokens()
+      await authAPI.verifyOTP(email, otpCode)
       router.push('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid code. Please try again.')
+      console.log('OTP Verify Error:', err.response?.data)
+      const errorData = err.response?.data
+
+      if (errorData) {
+        // Handle different error formats from Django
+        const errorMsg =
+          errorData.error ||
+          errorData.detail ||
+          errorData.otp?.[0] ||
+          errorData.code?.[0] ||
+          errorData.non_field_errors?.[0] ||
+          JSON.stringify(errorData)
+
+        setError(errorMsg)
+      } else {
+        setError('Invalid code. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }

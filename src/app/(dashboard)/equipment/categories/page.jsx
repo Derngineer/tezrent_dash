@@ -36,6 +36,7 @@ const CategoriesPage = () => {
   const [currentCategory, setCurrentCategory] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -43,6 +44,7 @@ const CategoriesPage = () => {
     is_featured: false,
     display_order: 0
   })
+
   const [iconFile, setIconFile] = useState(null)
   const [iconPreview, setIconPreview] = useState(null)
   const [promotionalImageFile, setPromotionalImageFile] = useState(null)
@@ -65,10 +67,23 @@ const CategoriesPage = () => {
     try {
       setLoading(true)
       const response = await equipmentAPI.getCategories()
-      setCategories(response.data || response)
+
+      // Safely extract categories array
+      let categoriesData = []
+
+      if (Array.isArray(response)) {
+        categoriesData = response
+      } else if (response?.results && Array.isArray(response.results)) {
+        categoriesData = response.results
+      } else if (response?.data && Array.isArray(response.data)) {
+        categoriesData = response.data
+      }
+
+      setCategories(categoriesData)
     } catch (err) {
       console.error('Error fetching categories:', err)
       setError('Failed to load categories')
+      setCategories([]) // Ensure it's always an array
     } finally {
       setLoading(false)
     }
@@ -79,33 +94,40 @@ const CategoriesPage = () => {
   }, [])
 
   // Handle form changes
-  const handleChange = (field) => (event) => {
+  const handleChange = field => event => {
     const value = field === 'is_featured' ? event.target.checked : event.target.value
+
     setFormData({ ...formData, [field]: value })
   }
 
   // Handle icon file selection
-  const handleIconChange = (event) => {
+  const handleIconChange = event => {
     const file = event.target.files[0]
+
     if (file) {
       setIconFile(file)
       const reader = new FileReader()
+
       reader.onloadend = () => {
         setIconPreview(reader.result)
       }
+
       reader.readAsDataURL(file)
     }
   }
 
   // Handle promotional image file selection
-  const handlePromotionalImageChange = (event) => {
+  const handlePromotionalImageChange = event => {
     const file = event.target.files[0]
+
     if (file) {
       setPromotionalImageFile(file)
       const reader = new FileReader()
+
       reader.onloadend = () => {
         setPromotionalImagePreview(reader.result)
       }
+
       reader.readAsDataURL(file)
     }
   }
@@ -129,7 +151,7 @@ const CategoriesPage = () => {
   }
 
   // Open dialog for edit
-  const handleOpenEdit = (category) => {
+  const handleOpenEdit = category => {
     setEditMode(true)
     setCurrentCategory(category)
     setFormData({
@@ -157,6 +179,7 @@ const CategoriesPage = () => {
     try {
       if (!formData.name.trim()) {
         setError('Category name is required')
+
         return
       }
 
@@ -173,6 +196,7 @@ const CategoriesPage = () => {
       } else {
         // Create new category
         const response = await equipmentAPI.createCategory(formData)
+
         categoryId = response.id
         setSuccess('Category created successfully!')
       }
@@ -180,6 +204,7 @@ const CategoriesPage = () => {
       // Upload icon if provided
       if (iconFile && categoryId) {
         const iconFormData = new FormData()
+
         iconFormData.append('icon', iconFile)
         await equipmentAPI.uploadCategoryIcon(categoryId, iconFile)
       }
@@ -187,7 +212,9 @@ const CategoriesPage = () => {
       // Upload promotional image if provided
       if (promotionalImageFile && categoryId) {
         const imageFormData = new FormData()
+
         imageFormData.append('promotional_image', promotionalImageFile)
+
         // Note: You may need to add this endpoint to your API
         await equipmentAPI.uploadCategoryPromotionalImage(categoryId, promotionalImageFile)
       }
@@ -195,7 +222,7 @@ const CategoriesPage = () => {
       // Refresh list and close dialog
       await fetchCategories()
       setOpenDialog(false)
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
@@ -207,7 +234,7 @@ const CategoriesPage = () => {
   }
 
   // Handle delete
-  const handleDelete = async (id) => {
+  const handleDelete = async id => {
     if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
       return
     }
@@ -228,7 +255,7 @@ const CategoriesPage = () => {
   }
 
   // Toggle featured status
-  const handleToggleFeatured = async (category) => {
+  const handleToggleFeatured = async category => {
     try {
       await equipmentAPI.updateCategory(category.id, {
         ...category,
@@ -263,11 +290,7 @@ const CategoriesPage = () => {
         <CardHeader
           title='Equipment Categories'
           action={
-            <Button
-              variant='contained'
-              startIcon={<i className='ri-add-line' />}
-              onClick={handleOpenCreate}
-            >
+            <Button variant='contained' startIcon={<i className='ri-add-line' />} onClick={handleOpenCreate}>
               Add Category
             </Button>
           }
@@ -291,7 +314,7 @@ const CategoriesPage = () => {
             </Box>
           ) : (
             <Grid container spacing={4}>
-              {categories.map((category) => (
+              {categories.map(category => (
                 <Grid item xs={12} sm={6} md={4} key={category.id}>
                   <Card
                     variant='outlined'
@@ -443,7 +466,7 @@ const CategoriesPage = () => {
                 Color Code
               </Typography>
               <Box display='flex' gap={1} flexWrap='wrap' mb={2}>
-                {recommendedColors.map((item) => (
+                {recommendedColors.map(item => (
                   <Tooltip key={item.color} title={item.name}>
                     <Box
                       sx={{
@@ -532,12 +555,7 @@ const CategoriesPage = () => {
             </Box>
 
             <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.is_featured}
-                  onChange={handleChange('is_featured')}
-                />
-              }
+              control={<Switch checked={formData.is_featured} onChange={handleChange('is_featured')} />}
               label='Featured Category'
             />
           </Box>

@@ -175,25 +175,63 @@ export const authAPI = {
 
   // OTP LOGIN - Request OTP
   requestOTP: async email => {
+    console.log('Requesting OTP for:', email)
     const response = await axios.post(`${API_BASE_URL}accounts/otp/request/`, { email })
+
+    console.log('OTP Request Response:', response.data)
 
     return response.data
   },
 
   // OTP LOGIN - Verify OTP and get tokens
+  // Payload: { email: string, otp: string }
+  // Response: { access: string, refresh: string, user?: object }
   verifyOTP: async (email, otp) => {
-    const response = await axios.post(`${API_BASE_URL}accounts/otp/verify/`, { email, otp })
+    console.log('Verifying OTP:', { email, otp })
+
+    // Try with 'otp' field first (most common)
+    const payload = { email, otp }
+
+    console.log('Sending payload:', payload)
+    const response = await axios.post(`${API_BASE_URL}accounts/otp/verify/`, payload)
+
+    console.log('OTP Verify Response:', response.data)
     const { access, refresh, user } = response.data
 
     setTokens(access, refresh)
-    setUserProfile(user)
+
+    if (user) {
+      setUserProfile(user)
+    }
 
     return response.data
   },
 
-  logout: () => {
-    clearTokens()
-    window.location.href = '/login'
+  // Logout - invalidate refresh token on backend and clear local storage
+  logout: async () => {
+    try {
+      const accessToken = getAccessToken()
+      const refreshToken = getRefreshToken()
+
+      if (accessToken && refreshToken) {
+        await axios.post(
+          `${API_BASE_URL}accounts/logout/`,
+          { refresh: refreshToken },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        )
+      }
+    } catch (error) {
+      // Even if backend logout fails, we still clear local tokens
+      console.log('Logout API error (tokens will still be cleared):', error)
+    } finally {
+      clearTokens()
+      window.location.href = '/login'
+    }
   },
 
   getProfile: async () => {
