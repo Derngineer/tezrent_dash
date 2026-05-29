@@ -96,20 +96,6 @@ const QUESTIONS = [
     placeholder: 'john@company.com',
     type: 'email',
     required: true
-  },
-  {
-    key: 'password',
-    question: 'Create a password',
-    placeholder: '8+ characters',
-    type: 'password',
-    required: true
-  },
-  {
-    key: 'confirmPassword',
-    question: 'Confirm your password',
-    placeholder: 'Re-enter password',
-    type: 'password',
-    required: true
   }
 ]
 
@@ -427,18 +413,6 @@ const Register = () => {
       }
     }
 
-    if (currentQuestion.key === 'password' && value && value.length < 8) {
-      setError('Password must be at least 8 characters')
-
-      return false
-    }
-
-    if (currentQuestion.key === 'confirmPassword' && value !== formData.password) {
-      setError('Passwords do not match')
-
-      return false
-    }
-
     setError('')
 
     return true
@@ -476,17 +450,38 @@ const Register = () => {
     setError('')
 
     try {
-      const { confirmPassword, ...submitData } = formData
+      // Transform form data to match backend structure
+      const submitData = {
+        email: formData.email,
+        username: formData.email.split('@')[0],
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone_number: formData.phone_number,
+        country: formData.country,
+        profile: {
+          company_name: formData.company_name,
+          business_type: formData.business_type,
+          company_address: formData.company_address,
+          city: formData.city,
+          tax_number: formData.tax_number || '',
+          company_phone: formData.phone_number // Use same phone for company
+        }
+      }
 
+      console.log('Registration data being sent:', submitData)
       await api.post('/accounts/register/company/', submitData)
       router.push('/login?registered=true')
     } catch (err) {
+      console.error('Registration error:', err.response?.data)
       const errorData = err.response?.data
 
       if (errorData) {
-        const firstError = Object.values(errorData)[0]
+        // Show all field errors
+        const errors = Object.entries(errorData)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs[0] : msgs}`)
+          .join(', ')
 
-        setError(Array.isArray(firstError) ? firstError[0] : firstError)
+        setError(errors || 'Registration failed')
       } else {
         setError('Registration failed. Please try again.')
       }

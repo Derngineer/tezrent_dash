@@ -66,7 +66,7 @@ const VerticalMenu = ({ scrollMenu }) => {
             Media Hub
           </MenuItem>
           <MenuItem href='/equipment/categories' icon={<i className='ri-folder-line' />}>
-            Categories
+            Sub-Categories
           </MenuItem>
           <MenuItem href='/equipment/banners' icon={<i className='ri-image-2-line' />}>
             Banners

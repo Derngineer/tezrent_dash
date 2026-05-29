@@ -9,7 +9,7 @@ import styled from '@emotion/styled'
 import { keyframes } from '@emotion/react'
 
 import Link from '@components/Link'
-import api, { authAPI } from '@/services/api'
+import { authAPI } from '@/services/api'
 
 const BRAND_BLUE = '#696cff'
 
@@ -291,8 +291,7 @@ const FooterLink = styled.span`
 
 const STEPS = [
   { key: 'email', question: "What's your email?", placeholder: 'john@company.com', type: 'email' },
-  { key: 'otp', question: 'Enter the code we sent you', type: 'otp' },
-  { key: 'password', question: 'Enter your password', placeholder: 'Your password', type: 'password' }
+  { key: 'otp', question: 'Enter the code we sent you', type: 'otp' }
 ]
 
 const Login = () => {
@@ -304,13 +303,12 @@ const Login = () => {
   const [currentStep, setCurrentStep] = useState(0)
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
 
-  const progress = ((currentStep + 1) / 3) * 100
+  const progress = ((currentStep + 1) / 2) * 100
   const registered = searchParams.get('registered')
 
   useEffect(() => {
@@ -326,10 +324,6 @@ const Login = () => {
 
     if (currentStep === 1 && otpRefs.current[0]) {
       otpRefs.current[0].focus()
-    }
-
-    if (currentStep === 2 && inputRef.current) {
-      inputRef.current.focus()
     }
   }, [currentStep])
 
@@ -439,26 +433,6 @@ const Login = () => {
     }
   }
 
-  const handlePasswordSubmit = async () => {
-    if (!password) {
-      setError('Please enter your password')
-
-      return
-    }
-
-    setIsLoading(true)
-    setError('')
-
-    try {
-      await authAPI.login(email, password)
-      router.push('/dashboard')
-    } catch (err) {
-      setError(err.response?.data?.detail || err.response?.data?.error || 'Invalid credentials')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleResendOTP = async () => {
     if (countdown > 0) return
 
@@ -477,11 +451,6 @@ const Login = () => {
     }
   }
 
-  const handleUsePassword = () => {
-    setError('')
-    setCurrentStep(2)
-  }
-
   const handleBack = () => {
     setError('')
 
@@ -495,7 +464,6 @@ const Login = () => {
       e.preventDefault()
 
       if (currentStep === 0) handleEmailSubmit()
-      else if (currentStep === 2) handlePasswordSubmit()
     }
   }
 
@@ -522,7 +490,6 @@ const Login = () => {
           <TextButton onClick={handleResendOTP} disabled={countdown > 0 || isLoading}>
             {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
           </TextButton>
-          <TextButton onClick={handleUsePassword}>Use password instead</TextButton>
         </>
       )
     }
@@ -532,12 +499,10 @@ const Login = () => {
         ref={inputRef}
         type={step.type}
         placeholder={step.placeholder}
-        value={currentStep === 0 ? email : password}
+        value={email}
         onChange={e => {
           setError('')
-
-          if (currentStep === 0) setEmail(e.target.value)
-          else setPassword(e.target.value)
+          setEmail(e.target.value)
         }}
         onKeyDown={handleKeyDown}
       />
@@ -546,8 +511,7 @@ const Login = () => {
 
   const handleContinue = () => {
     if (currentStep === 0) handleEmailSubmit()
-    else if (currentStep === 1) handleOTPSubmit()
-    else handlePasswordSubmit()
+    else handleOTPSubmit()
   }
 
   return (

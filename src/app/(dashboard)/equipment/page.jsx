@@ -1,11 +1,9 @@
 'use client'
 
-// React Imports
 import { useState, useEffect } from 'react'
 
 import { useRouter } from 'next/navigation'
 
-// MUI Imports
 import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -22,49 +20,45 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 
-// API Imports
 import { equipmentAPI } from '@/services/api'
+
+const MAJOR_CATEGORIES = [
+  { value: 'construction', label: 'Construction' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'home_goods', label: 'Home Goods' },
+  { value: 'cars_auto', label: 'Cars & Auto' },
+  { value: 'real_estate', label: 'Real Estate' }
+]
 
 const EquipmentList = () => {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [equipment, setEquipment] = useState([])
-  const [categories, setCategories] = useState([])
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [deleteDialog, setDeleteDialog] = useState({ open: false, equipmentId: null, equipmentName: '' })
 
-  // Filters
   const [filters, setFilters] = useState({
     search: '',
-    category: '',
+    major_category: '',
     status: ''
   })
 
   useEffect(() => {
-    loadCategories()
     loadEquipment()
   }, [])
 
   useEffect(() => {
-    // Debounce with longer delay for search to avoid canceling requests too quickly
     const timer = setTimeout(() => {
       loadEquipment()
-    }, 800) // Increased from 500ms to 800ms
+    }, 800)
 
     return () => clearTimeout(timer)
   }, [filters])
-
-  const loadCategories = async () => {
-    try {
-      const data = await equipmentAPI.getCategories()
-
-      setCategories(data.results || data)
-    } catch (err) {
-      console.error('Failed to load categories:', err)
-    }
-  }
 
   const loadEquipment = async () => {
     try {
@@ -74,20 +68,15 @@ const EquipmentList = () => {
       const params = {}
 
       if (filters.search) params.search = filters.search
-      if (filters.category) params.category = filters.category
+      if (filters.major_category) params.major_category = filters.major_category
       if (filters.status) params.status = filters.status
-
-      console.log('🔄 Loading equipment with params:', params)
 
       const data = await equipmentAPI.getMyEquipment(params)
 
-      console.log('✅ Equipment loaded successfully:', data.results?.length || data.length, 'items')
-
       setEquipment(data.results || data)
     } catch (err) {
-      console.error('❌ Failed to load equipment:', err)
+      console.error('Failed to load equipment:', err)
 
-      // Better error messages for different error types
       let errorMessage = 'Failed to load equipment'
 
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
@@ -112,6 +101,10 @@ const EquipmentList = () => {
     setFilters(prev => ({ ...prev, [field]: value }))
   }
 
+  const handleMajorCategoryTab = (_, newValue) => {
+    setFilters(prev => ({ ...prev, major_category: newValue, category: '' }))
+  }
+
   const handleDelete = async () => {
     try {
       await equipmentAPI.deleteEquipment(deleteDialog.equipmentId)
@@ -134,42 +127,25 @@ const EquipmentList = () => {
   }
 
   const getStatusColor = status => {
-    const colors = {
-      available: 'success',
-      rented: 'info',
-      maintenance: 'warning',
-      unavailable: 'error'
-    }
+    const colors = { available: 'success', rented: 'info', maintenance: 'warning', unavailable: 'error' }
 
     return colors[status] || 'default'
   }
 
-  const getConditionColor = condition => {
-    const colors = {
-      new: 'success',
-      excellent: 'success',
-      good: 'primary',
-      fair: 'warning',
-      needs_repair: 'error'
-    }
-
-    return colors[condition] || 'default'
-  }
-
   const formatCurrency = amount => {
-    return new Intl.NumberFormat('en-AE', {
-      style: 'currency',
-      currency: 'AED',
-      minimumFractionDigits: 0
-    }).format(amount)
+    return new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED', minimumFractionDigits: 0 }).format(
+      amount
+    )
   }
+
+  const getMajorCategoryLabel = value => MAJOR_CATEGORIES.find(c => c.value === value)?.label || value
 
   return (
     <Grid container spacing={6}>
       {/* Header */}
       <Grid item xs={12}>
         <Box display='flex' justifyContent='space-between' alignItems='center'>
-          <Typography variant='h4'>Equipment Management</Typography>
+          <Typography variant='h4'>My Equipment</Typography>
           <Button variant='contained' startIcon={<i className='ri-add-line' />} href='/equipment/add'>
             Add Equipment
           </Button>
@@ -192,6 +168,24 @@ const EquipmentList = () => {
         </Grid>
       )}
 
+      {/* Major Category Tabs */}
+      <Grid item xs={12}>
+        <Card>
+          <Tabs
+            value={filters.major_category}
+            onChange={handleMajorCategoryTab}
+            variant='scrollable'
+            scrollButtons='auto'
+            sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Tab label='All Categories' value='' />
+            {MAJOR_CATEGORIES.map(cat => (
+              <Tab key={cat.value} label={cat.label} value={cat.value} />
+            ))}
+          </Tabs>
+        </Card>
+      </Grid>
+
       {/* Filters */}
       <Grid item xs={12}>
         <Card>
@@ -201,29 +195,11 @@ const EquipmentList = () => {
                 <TextField
                   fullWidth
                   label='Search'
-                  placeholder='Search by name, model, serial number...'
+                  placeholder='Search by name, model...'
                   value={filters.search}
                   onChange={e => handleFilterChange('search', e.target.value)}
-                  InputProps={{
-                    startAdornment: <i className='ri-search-line' style={{ marginRight: 8 }} />
-                  }}
+                  InputProps={{ startAdornment: <i className='ri-search-line' style={{ marginRight: 8 }} /> }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  select
-                  label='Category'
-                  value={filters.category}
-                  onChange={e => handleFilterChange('category', e.target.value)}
-                >
-                  <MenuItem value=''>All Categories</MenuItem>
-                  {categories.map(cat => (
-                    <MenuItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
@@ -250,7 +226,7 @@ const EquipmentList = () => {
           <Box display='flex' flexDirection='column' justifyContent='center' alignItems='center' minHeight='300px'>
             <CircularProgress size={48} />
             <Typography variant='body2' color='text.secondary' sx={{ mt: 2 }}>
-              Loading equipment... Please wait, this may take a moment for large datasets.
+              Loading equipment...
             </Typography>
           </Box>
         </Grid>
@@ -264,7 +240,9 @@ const EquipmentList = () => {
                   No equipment found
                 </Typography>
                 <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
-                  Start by adding your first equipment
+                  {filters.major_category
+                    ? `No equipment in ${getMajorCategoryLabel(filters.major_category)} yet`
+                    : 'Start by adding your first equipment'}
                 </Typography>
                 <Button variant='contained' href='/equipment/add' startIcon={<i className='ri-add-line' />}>
                   Add Equipment
@@ -294,10 +272,19 @@ const EquipmentList = () => {
               <CardContent>
                 <Box display='flex' justifyContent='space-between' alignItems='start' mb={2}>
                   <Box flex={1}>
-                    <Typography variant='h6' sx={{ mb: 1 }}>
+                    <Typography variant='h6' sx={{ mb: 0.5 }}>
                       {item.name}
                     </Typography>
-                    <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
+                    {item.major_category && (
+                      <Chip
+                        label={getMajorCategoryLabel(item.major_category)}
+                        size='small'
+                        variant='outlined'
+                        color='primary'
+                        sx={{ mr: 1, mb: 0.5 }}
+                      />
+                    )}
+                    <Typography variant='body2' color='text.secondary'>
                       {item.category_name}
                     </Typography>
                   </Box>
@@ -309,11 +296,7 @@ const EquipmentList = () => {
                       size='small'
                       color='error'
                       onClick={() =>
-                        setDeleteDialog({
-                          open: true,
-                          equipmentId: item.id,
-                          equipmentName: item.name
-                        })
+                        setDeleteDialog({ open: true, equipmentId: item.id, equipmentName: item.name })
                       }
                     >
                       <i className='ri-delete-bin-line' />
@@ -338,9 +321,6 @@ const EquipmentList = () => {
                         <Typography variant='caption' color='text.secondary' sx={{ textDecoration: 'line-through' }}>
                           {formatCurrency(item.daily_rate)}
                         </Typography>
-                        {item.savings_amount > 0 && (
-                          <Chip label={`Save $${item.savings_amount}`} size='small' color='success' sx={{ ml: 1 }} />
-                        )}
                       </>
                     ) : (
                       <Typography variant='h6' color='primary'>

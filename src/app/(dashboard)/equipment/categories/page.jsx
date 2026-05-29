@@ -1,9 +1,7 @@
 'use client'
 
-// React Imports
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
-// MUI Imports
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
@@ -15,6 +13,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
+import MenuItem from '@mui/material/MenuItem'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Switch from '@mui/material/Switch'
 import Alert from '@mui/material/Alert'
@@ -24,11 +23,29 @@ import Box from '@mui/material/Box'
 import CircularProgress from '@mui/material/CircularProgress'
 import Tooltip from '@mui/material/Tooltip'
 
-// API Imports
 import { equipmentAPI } from '@/services/api'
 
-const CategoriesPage = () => {
-  // States
+const MAJOR_CATEGORIES = [
+  { value: 'construction', label: 'Construction' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'home_goods', label: 'Home Goods' },
+  { value: 'cars_auto', label: 'Cars & Auto' },
+  { value: 'real_estate', label: 'Real Estate' }
+]
+
+const recommendedColors = [
+  { color: '#FF9800', name: 'Orange' },
+  { color: '#4CAF50', name: 'Green' },
+  { color: '#2196F3', name: 'Blue' },
+  { color: '#F44336', name: 'Red' },
+  { color: '#9C27B0', name: 'Purple' },
+  { color: '#00BCD4', name: 'Cyan' },
+  { color: '#FF5722', name: 'Deep Orange' },
+  { color: '#795548', name: 'Brown' }
+]
+
+const SubCategoriesPage = () => {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [openDialog, setOpenDialog] = useState(false)
@@ -36,9 +53,11 @@ const CategoriesPage = () => {
   const [currentCategory, setCurrentCategory] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [majorFilter, setMajorFilter] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
+    major_category: '',
     description: '',
     color_code: '#1976d2',
     is_featured: false,
@@ -50,25 +69,11 @@ const CategoriesPage = () => {
   const [promotionalImageFile, setPromotionalImageFile] = useState(null)
   const [promotionalImagePreview, setPromotionalImagePreview] = useState(null)
 
-  // Recommended colors for categories
-  const recommendedColors = [
-    { color: '#FF9800', name: 'Orange' },
-    { color: '#4CAF50', name: 'Green' },
-    { color: '#2196F3', name: 'Blue' },
-    { color: '#F44336', name: 'Red' },
-    { color: '#9C27B0', name: 'Purple' },
-    { color: '#00BCD4', name: 'Cyan' },
-    { color: '#FF5722', name: 'Deep Orange' },
-    { color: '#795548', name: 'Brown' }
-  ]
-
-  // Fetch categories
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async (major = majorFilter) => {
     try {
       setLoading(true)
-      const response = await equipmentAPI.getCategories()
+      const response = await equipmentAPI.getCategories(major || null)
 
-      // Safely extract categories array
       let categoriesData = []
 
       if (Array.isArray(response)) {
@@ -81,26 +86,24 @@ const CategoriesPage = () => {
 
       setCategories(categoriesData)
     } catch (err) {
-      console.error('Error fetching categories:', err)
-      setError('Failed to load categories')
-      setCategories([]) // Ensure it's always an array
+      console.error('Error fetching sub-categories:', err)
+      setError('Failed to load sub-categories')
+      setCategories([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [majorFilter])
 
   useEffect(() => {
     fetchCategories()
-  }, [])
+  }, [fetchCategories])
 
-  // Handle form changes
   const handleChange = field => event => {
     const value = field === 'is_featured' ? event.target.checked : event.target.value
 
     setFormData({ ...formData, [field]: value })
   }
 
-  // Handle icon file selection
   const handleIconChange = event => {
     const file = event.target.files[0]
 
@@ -108,15 +111,11 @@ const CategoriesPage = () => {
       setIconFile(file)
       const reader = new FileReader()
 
-      reader.onloadend = () => {
-        setIconPreview(reader.result)
-      }
-
+      reader.onloadend = () => setIconPreview(reader.result)
       reader.readAsDataURL(file)
     }
   }
 
-  // Handle promotional image file selection
   const handlePromotionalImageChange = event => {
     const file = event.target.files[0]
 
@@ -124,20 +123,17 @@ const CategoriesPage = () => {
       setPromotionalImageFile(file)
       const reader = new FileReader()
 
-      reader.onloadend = () => {
-        setPromotionalImagePreview(reader.result)
-      }
-
+      reader.onloadend = () => setPromotionalImagePreview(reader.result)
       reader.readAsDataURL(file)
     }
   }
 
-  // Open dialog for create
   const handleOpenCreate = () => {
     setEditMode(false)
     setCurrentCategory(null)
     setFormData({
       name: '',
+      major_category: majorFilter || '',
       description: '',
       color_code: '#1976d2',
       is_featured: false,
@@ -150,12 +146,12 @@ const CategoriesPage = () => {
     setOpenDialog(true)
   }
 
-  // Open dialog for edit
   const handleOpenEdit = category => {
     setEditMode(true)
     setCurrentCategory(category)
     setFormData({
       name: category.name,
+      major_category: category.major_category || '',
       description: category.description || '',
       color_code: category.color_code || '#1976d2',
       is_featured: category.is_featured || false,
@@ -168,17 +164,21 @@ const CategoriesPage = () => {
     setOpenDialog(true)
   }
 
-  // Close dialog
   const handleCloseDialog = () => {
     setOpenDialog(false)
     setError('')
   }
 
-  // Handle submit (create or update)
   const handleSubmit = async () => {
     try {
       if (!formData.name.trim()) {
-        setError('Category name is required')
+        setError('Sub-category name is required')
+
+        return
+      }
+
+      if (!formData.major_category) {
+        setError('Major category is required')
 
         return
       }
@@ -189,91 +189,70 @@ const CategoriesPage = () => {
       let categoryId
 
       if (editMode && currentCategory) {
-        // Update existing category
         await equipmentAPI.updateCategory(currentCategory.id, formData)
         categoryId = currentCategory.id
-        setSuccess('Category updated successfully!')
+        setSuccess('Sub-category updated successfully!')
       } else {
-        // Create new category
         const response = await equipmentAPI.createCategory(formData)
 
         categoryId = response.id
-        setSuccess('Category created successfully!')
+        setSuccess('Sub-category created successfully!')
       }
 
-      // Upload icon if provided
       if (iconFile && categoryId) {
-        const iconFormData = new FormData()
-
-        iconFormData.append('icon', iconFile)
         await equipmentAPI.uploadCategoryIcon(categoryId, iconFile)
       }
 
-      // Upload promotional image if provided
       if (promotionalImageFile && categoryId) {
-        const imageFormData = new FormData()
-
-        imageFormData.append('promotional_image', promotionalImageFile)
-
-        // Note: You may need to add this endpoint to your API
         await equipmentAPI.uploadCategoryPromotionalImage(categoryId, promotionalImageFile)
       }
 
-      // Refresh list and close dialog
       await fetchCategories()
       setOpenDialog(false)
-
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      console.error('Error saving category:', err)
-      setError(err.response?.data?.message || 'Failed to save category')
+      console.error('Error saving sub-category:', err)
+      setError(err.response?.data?.message || 'Failed to save sub-category')
     } finally {
       setLoading(false)
     }
   }
 
-  // Handle delete
   const handleDelete = async id => {
-    if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
-      return
-    }
+    if (!confirm('Are you sure you want to delete this sub-category? This action cannot be undone.')) return
 
     try {
       setLoading(true)
       await equipmentAPI.deleteCategory(id)
-      setSuccess('Category deleted successfully!')
+      setSuccess('Sub-category deleted successfully!')
       await fetchCategories()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      console.error('Error deleting category:', err)
-      setError(err.response?.data?.message || 'Failed to delete category')
+      console.error('Error deleting sub-category:', err)
+      setError(err.response?.data?.message || 'Failed to delete sub-category')
       setTimeout(() => setError(''), 3000)
     } finally {
       setLoading(false)
     }
   }
 
-  // Toggle featured status
   const handleToggleFeatured = async category => {
     try {
-      await equipmentAPI.updateCategory(category.id, {
-        ...category,
-        is_featured: !category.is_featured
-      })
-      setSuccess('Category updated!')
+      await equipmentAPI.updateCategory(category.id, { ...category, is_featured: !category.is_featured })
+      setSuccess('Sub-category updated!')
       await fetchCategories()
       setTimeout(() => setSuccess(''), 2000)
     } catch (err) {
-      console.error('Error updating category:', err)
-      setError('Failed to update category')
+      console.error('Error updating sub-category:', err)
+      setError('Failed to update sub-category')
       setTimeout(() => setError(''), 3000)
     }
   }
 
+  const getMajorLabel = value => MAJOR_CATEGORIES.find(c => c.value === value)?.label || value
+
   return (
     <div>
-      {/* Success/Error Alerts */}
       {success && (
         <Alert severity='success' onClose={() => setSuccess('')} className='mbe-4'>
           {success}
@@ -285,14 +264,31 @@ const CategoriesPage = () => {
         </Alert>
       )}
 
-      {/* Categories List */}
       <Card>
         <CardHeader
-          title='Equipment Categories'
+          title='Sub-Categories'
+          subheader='Sub-categories fall under one of the 6 major categories'
           action={
-            <Button variant='contained' startIcon={<i className='ri-add-line' />} onClick={handleOpenCreate}>
-              Add Category
-            </Button>
+            <Box display='flex' gap={2} alignItems='center'>
+              <TextField
+                select
+                size='small'
+                label='Filter by Major Category'
+                value={majorFilter}
+                onChange={e => setMajorFilter(e.target.value)}
+                sx={{ minWidth: 200 }}
+              >
+                <MenuItem value=''>All Major Categories</MenuItem>
+                {MAJOR_CATEGORIES.map(cat => (
+                  <MenuItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Button variant='contained' startIcon={<i className='ri-add-line' />} onClick={handleOpenCreate}>
+                Add Sub-Category
+              </Button>
+            </Box>
           }
         />
         <CardContent>
@@ -303,13 +299,15 @@ const CategoriesPage = () => {
           ) : categories.length === 0 ? (
             <Box textAlign='center' py={4}>
               <Typography variant='h6' color='text.secondary' gutterBottom>
-                No categories yet
+                No sub-categories yet
               </Typography>
               <Typography variant='body2' color='text.secondary' paragraph>
-                Create your first equipment category to get started
+                {majorFilter
+                  ? `No sub-categories under ${getMajorLabel(majorFilter)}`
+                  : 'Create sub-categories under any major category'}
               </Typography>
               <Button variant='contained' onClick={handleOpenCreate} startIcon={<i className='ri-add-line' />}>
-                Create Category
+                Add Sub-Category
               </Button>
             </Box>
           ) : (
@@ -318,30 +316,19 @@ const CategoriesPage = () => {
                 <Grid item xs={12} sm={6} md={4} key={category.id}>
                   <Card
                     variant='outlined'
-                    sx={{
-                      borderLeft: 4,
-                      borderLeftColor: category.color_code || '#1976d2',
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column'
-                    }}
+                    sx={{ borderLeft: 4, borderLeftColor: category.color_code || '#1976d2', height: '100%', display: 'flex', flexDirection: 'column' }}
                   >
-                    {/* Promotional Image */}
                     {category.promotional_image_url && (
                       <Box
                         component='img'
                         src={category.promotional_image_url}
                         alt={category.name}
-                        sx={{
-                          width: '100%',
-                          height: 150,
-                          objectFit: 'cover'
-                        }}
+                        sx={{ width: '100%', height: 150, objectFit: 'cover' }}
                       />
                     )}
 
                     <CardContent sx={{ flexGrow: 1 }}>
-                      <Box display='flex' justifyContent='space-between' alignItems='start' mb={2}>
+                      <Box display='flex' justifyContent='space-between' alignItems='start' mb={1}>
                         <Box display='flex' alignItems='center' gap={1}>
                           {category.icon_url && (
                             <Box
@@ -355,12 +342,18 @@ const CategoriesPage = () => {
                             {category.name}
                           </Typography>
                         </Box>
-                        <Box>
-                          {category.is_featured && (
-                            <Chip label='Featured' size='small' color='primary' sx={{ mr: 1 }} />
-                          )}
-                        </Box>
+                        {category.is_featured && <Chip label='Featured' size='small' color='primary' />}
                       </Box>
+
+                      {category.major_category && (
+                        <Chip
+                          label={getMajorLabel(category.major_category)}
+                          size='small'
+                          variant='outlined'
+                          color='secondary'
+                          sx={{ mb: 1 }}
+                        />
+                      )}
 
                       {category.description && (
                         <Typography variant='body2' color='text.secondary' paragraph>
@@ -368,37 +361,21 @@ const CategoriesPage = () => {
                         </Typography>
                       )}
 
-                      <Box display='flex' gap={1} alignItems='center' mb={2}>
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 1,
-                            backgroundColor: category.color_code || '#1976d2'
-                          }}
-                        />
+                      <Box display='flex' gap={1} alignItems='center' mb={1}>
+                        <Box sx={{ width: 20, height: 20, borderRadius: 0.5, backgroundColor: category.color_code || '#1976d2' }} />
                         <Typography variant='caption' color='text.secondary'>
                           {category.color_code || '#1976d2'}
                         </Typography>
                       </Box>
 
-                      <Box display='flex' gap={2} flexWrap='wrap'>
-                        <Typography variant='caption' color='text.secondary'>
-                          Order: {category.display_order || 0}
-                        </Typography>
-                        <Typography variant='caption' color='text.secondary'>
-                          Equipment: {category.equipment_count || 0}
-                        </Typography>
-                      </Box>
+                      <Typography variant='caption' color='text.secondary'>
+                        Equipment: {category.equipment_count || 0}
+                      </Typography>
                     </CardContent>
 
                     <Box display='flex' gap={1} p={2} pt={0}>
                       <Tooltip title={category.is_featured ? 'Remove from featured' : 'Mark as featured'}>
-                        <IconButton
-                          size='small'
-                          color={category.is_featured ? 'primary' : 'default'}
-                          onClick={() => handleToggleFeatured(category)}
-                        >
+                        <IconButton size='small' color={category.is_featured ? 'primary' : 'default'} onClick={() => handleToggleFeatured(category)}>
                           <i className='ri-star-line' />
                         </IconButton>
                       </Tooltip>
@@ -423,7 +400,7 @@ const CategoriesPage = () => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth='sm' fullWidth>
-        <DialogTitle>{editMode ? 'Edit Category' : 'Create New Category'}</DialogTitle>
+        <DialogTitle>{editMode ? 'Edit Sub-Category' : 'Create Sub-Category'}</DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity='error' onClose={() => setError('')} className='mbe-4'>
@@ -433,13 +410,30 @@ const CategoriesPage = () => {
 
           <Box display='flex' flexDirection='column' gap={3} mt={2}>
             <TextField
+              fullWidth
+              required
+              select
+              label='Major Category'
+              value={formData.major_category}
+              onChange={handleChange('major_category')}
+              helperText='Which major category does this sub-category belong to?'
+            >
+              <MenuItem value=''>Select Major Category</MenuItem>
+              {MAJOR_CATEGORIES.map(cat => (
+                <MenuItem key={cat.value} value={cat.value}>
+                  {cat.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
               autoFocus
               fullWidth
-              label='Category Name'
+              required
+              label='Sub-Category Name'
               value={formData.name}
               onChange={handleChange('name')}
-              required
-              placeholder='e.g., Excavators, Cranes, Forklifts'
+              placeholder='e.g., Excavators, Laptops, Soccer Equipment'
             />
 
             <TextField
@@ -449,7 +443,7 @@ const CategoriesPage = () => {
               onChange={handleChange('description')}
               multiline
               rows={3}
-              placeholder='Brief description of this category'
+              placeholder='Brief description of this sub-category'
             />
 
             <TextField
@@ -494,7 +488,7 @@ const CategoriesPage = () => {
 
             <Box>
               <Typography variant='body2' color='text.secondary' gutterBottom>
-                Category Icon
+                Icon
               </Typography>
               <Button variant='outlined' component='label' fullWidth sx={{ mb: 1 }}>
                 <i className='ri-upload-2-line' style={{ marginRight: 8 }} />
@@ -502,23 +496,8 @@ const CategoriesPage = () => {
                 <input type='file' hidden accept='image/*' onChange={handleIconChange} />
               </Button>
               {iconPreview && (
-                <Box
-                  sx={{
-                    mt: 1,
-                    p: 2,
-                    border: '1px solid #ddd',
-                    borderRadius: 1,
-                    textAlign: 'center'
-                  }}
-                >
-                  <img
-                    src={iconPreview}
-                    alt='Icon preview'
-                    style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'contain' }}
-                  />
-                  <Typography variant='caption' display='block' mt={1}>
-                    Icon Preview
-                  </Typography>
+                <Box sx={{ mt: 1, p: 2, border: '1px solid #ddd', borderRadius: 1, textAlign: 'center' }}>
+                  <img src={iconPreview} alt='Icon preview' style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'contain' }} />
                 </Box>
               )}
             </Box>
@@ -533,30 +512,15 @@ const CategoriesPage = () => {
                 <input type='file' hidden accept='image/*' onChange={handlePromotionalImageChange} />
               </Button>
               {promotionalImagePreview && (
-                <Box
-                  sx={{
-                    mt: 1,
-                    p: 2,
-                    border: '1px solid #ddd',
-                    borderRadius: 1,
-                    textAlign: 'center'
-                  }}
-                >
-                  <img
-                    src={promotionalImagePreview}
-                    alt='Promotional preview'
-                    style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: 4 }}
-                  />
-                  <Typography variant='caption' display='block' mt={1}>
-                    Promotional Image Preview
-                  </Typography>
+                <Box sx={{ mt: 1, p: 2, border: '1px solid #ddd', borderRadius: 1, textAlign: 'center' }}>
+                  <img src={promotionalImagePreview} alt='Promotional preview' style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: 4 }} />
                 </Box>
               )}
             </Box>
 
             <FormControlLabel
               control={<Switch checked={formData.is_featured} onChange={handleChange('is_featured')} />}
-              label='Featured Category'
+              label='Featured Sub-Category'
             />
           </Box>
         </DialogContent>
@@ -571,4 +535,4 @@ const CategoriesPage = () => {
   )
 }
 
-export default CategoriesPage
+export default SubCategoriesPage

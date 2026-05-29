@@ -33,9 +33,19 @@ const AddEquipment = () => {
   const [success, setSuccess] = useState(null)
   const [uploadingImages, setUploadingImages] = useState(false)
 
+  const MAJOR_CATEGORIES = [
+    { value: 'construction', label: 'Construction' },
+    { value: 'electronics', label: 'Electronics' },
+    { value: 'sports', label: 'Sports' },
+    { value: 'home_goods', label: 'Home Goods' },
+    { value: 'cars_auto', label: 'Cars & Auto' },
+    { value: 'real_estate', label: 'Real Estate' }
+  ]
+
   // Form data - EXACTLY matching backend model
   const [formData, setFormData] = useState({
     name: '',
+    major_category: '',
     category_id: '',
     description: '',
     manufacturer: '',
@@ -77,18 +87,25 @@ const AddEquipment = () => {
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    loadCategories()
     loadTags()
   }, [])
 
-  const loadCategories = async () => {
+  const loadCategories = async (majorCategory = null) => {
     try {
-      const data = await equipmentAPI.getCategories()
+      const data = await equipmentAPI.getCategories(majorCategory)
 
       setCategories(data.results || data)
     } catch (err) {
       console.error('Failed to load categories:', err)
     }
+  }
+
+  const handleMajorCategoryChange = value => {
+    setFormData(prev => ({ ...prev, major_category: value, category_id: '' }))
+    setCategories([])
+    if (value) loadCategories(value)
+    if (errors.major_category) setErrors(prev => ({ ...prev, major_category: null }))
+    if (errors.category_id) setErrors(prev => ({ ...prev, category_id: null }))
   }
 
   const loadTags = async () => {
@@ -223,7 +240,8 @@ const AddEquipment = () => {
     const newErrors = {}
 
     if (!formData.name.trim()) newErrors.name = 'Equipment name is required'
-    if (!formData.category_id) newErrors.category_id = 'Category is required'
+    if (!formData.major_category) newErrors.major_category = 'Major category is required'
+    if (!formData.category_id) newErrors.category_id = 'Sub-category is required'
     if (!formData.description.trim()) newErrors.description = 'Description is required'
 
     // Validate daily rate (required and must be positive)
@@ -424,13 +442,33 @@ const AddEquipment = () => {
                       fullWidth
                       required
                       select
-                      label='Category'
+                      label='Major Category'
+                      value={formData.major_category}
+                      onChange={e => handleMajorCategoryChange(e.target.value)}
+                      error={!!errors.major_category}
+                      helperText={errors.major_category}
+                    >
+                      <MenuItem value=''>Select Major Category</MenuItem>
+                      {MAJOR_CATEGORIES.map(cat => (
+                        <MenuItem key={cat.value} value={cat.value}>
+                          {cat.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      required
+                      select
+                      label='Sub-Category'
                       value={formData.category_id}
                       onChange={e => handleInputChange('category_id', e.target.value)}
                       error={!!errors.category_id}
-                      helperText={errors.category_id}
+                      helperText={errors.category_id || (!formData.major_category ? 'Select a major category first' : '')}
+                      disabled={!formData.major_category}
                     >
-                      <MenuItem value=''>Select Category</MenuItem>
+                      <MenuItem value=''>Select Sub-Category</MenuItem>
                       {categories.map(cat => (
                         <MenuItem key={cat.id} value={cat.id}>
                           {cat.name}

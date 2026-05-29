@@ -293,12 +293,12 @@ export const authAPI = {
 
 // Equipment API
 export const equipmentAPI = {
-  // GET REQUEST - Retrieve list of equipment
+  // GET REQUEST - Retrieve seller's own equipment listings only
   // Component calls: equipmentAPI.getMyEquipment()
-  // HTTP Method decided HERE ↓
+  // Uses my_listings endpoint to restrict to seller's own equipment
   getMyEquipment: async params => {
     // Increase timeout for equipment listing as it can be large
-    const response = await api.get('equipment/equipment/', {
+    const response = await api.get('equipment/equipment/my_listings/', {
       params,
       timeout: 120000 // 2 minutes for equipment listing (handles slow backend responses)
     })
@@ -378,9 +378,10 @@ export const equipmentAPI = {
   // CATEGORY MANAGEMENT ENDPOINTS
   // ============================================================================
 
-  // GET REQUEST - Get all categories
-  getCategories: async () => {
-    const response = await api.get('equipment/categories/')
+  // GET REQUEST - Get all categories, optionally filtered by major_category
+  getCategories: async (majorCategory = null) => {
+    const params = majorCategory ? { major_category: majorCategory } : {}
+    const response = await api.get('equipment/categories/', { params })
 
     return response.data
   },
@@ -542,8 +543,9 @@ export const equipmentAPI = {
     await api.delete(`equipment/tags/${id}/`)
   },
 
-  getCategories: async () => {
-    const response = await api.get('equipment/categories/')
+  getCategories: async (majorCategory = null) => {
+    const params = majorCategory ? { major_category: majorCategory } : {}
+    const response = await api.get('equipment/categories/', { params })
 
     return response.data
   }
