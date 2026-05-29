@@ -54,24 +54,20 @@ const RentalHistory = () => {
       setLoading(true)
       setError(null)
 
-      console.log('Fetching rental history...')
-
       const params = {
-        // owner_company: true, // Removed filter to show all rentals
         status: 'completed,cancelled,disputed',
         ordering: '-end_date',
         page: page + 1,
         page_size: rowsPerPage
       }
 
-      // Apply filters
       if (filters.status) params.status = filters.status
       if (filters.payment_status) params.payment_status = filters.payment_status
       if (filters.start_date) params.start_date_after = filters.start_date
       if (filters.end_date) params.end_date_before = filters.end_date
       if (filters.search) params.search = filters.search
 
-      const data = await rentalsAPI.getRentals(params)
+      const data = await rentalsAPI.getSellerRentals(params)
       console.log('History rentals API response:', data)
       
       let rentalsData = []

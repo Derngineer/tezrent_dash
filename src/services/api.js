@@ -580,6 +580,13 @@ export const rentalsAPI = {
     return response.data
   },
 
+  // Seller rental history — scoped to the authenticated seller via JWT
+  getSellerRentals: async params => {
+    const response = await api.get('rentals/rentals/seller_rentals/', { params })
+
+    return response.data
+  },
+
   // Customer-specific
   getMyRentals: async () => {
     const response = await api.get('rentals/rentals/my_rentals/')
